@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -126,7 +125,7 @@ func (h *GitHTTPHandler) serveGitPack(w http.ResponseWriter, r *http.Request, gi
 			http.Error(w, "Authentication required", http.StatusUnauthorized)
 			return
 		}
-		hasAccess, _ := h.repoStore.HasAccess(context.Background(), repo.ID, userID, minRole)
+		hasAccess, _ := h.repoStore.HasAccess(r.Context(), repo.ID, userID, minRole)
 		if !hasAccess {
 			http.Error(w, "Access denied", http.StatusForbidden)
 			return
@@ -141,10 +140,5 @@ func (h *GitHTTPHandler) serveGitPack(w http.ResponseWriter, r *http.Request, gi
 	cmd.Stdin = r.Body
 	cmd.Stdout = w
 	cmd.Stderr = io.Discard
-
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
-	}
-
 	cmd.Run()
 }

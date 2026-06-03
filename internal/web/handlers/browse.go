@@ -163,9 +163,15 @@ func (h *BrowseHandler) Raw(w http.ResponseWriter, r *http.Request) {
 	repoName := chi.URLParam(r, "repo")
 	ref := chi.URLParam(r, "ref")
 	path := chi.URLParam(r, "*")
+	user := CurrentUser(r)
 
 	repo, err := h.repoStore.GetByOwnerAndName(r.Context(), owner, repoName)
 	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if repo.IsPrivate && (user == nil || !h.hasRepoAccess(r, repo, user)) {
 		http.NotFound(w, r)
 		return
 	}

@@ -42,11 +42,11 @@
         <div class="comment" id="comment-{{.ID}}">
             <div class="comment-header">
                 <strong>{{.Author.Username}}</strong> <span class="text-muted">{{timeAgo .CreatedAt}}</span>
-                {{if eq .AuthorID $.User.ID}}
+                {{if $.User}}{{if eq .AuthorID $.User.ID}}
                 <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/issues/comments/{{.ID}}/delete" style="display:inline;float:right">
                     <button type="submit" class="btn-link text-danger" onclick="return confirm('Delete this comment?')">Delete</button>
                 </form>
-                {{end}}
+                {{end}}{{end}}
             </div>
             <div class="comment-body">{{.Body}}</div>
             {{if .Reactions}}
@@ -97,11 +97,11 @@
         <div class="sidebar-section">
             <h4>Labels</h4>
             <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/issues/{{.Issue.Number}}/labels">
-                {{range .Labels}}
+                {{range $label := .Labels}}
                 <label class="checkbox-label">
-                    <input type="checkbox" name="label_ids" value="{{.ID}}"
-                        {{range $.Issue.Labels}}{{if eq .ID $.ID}}checked{{end}}{{end}}>
-                    <span class="label" style="background-color:{{.Color}}">{{.Name}}</span>
+                    <input type="checkbox" name="label_ids" value="{{$label.ID}}"
+                        {{range $.Issue.Labels}}{{if eq .ID $label.ID}}checked{{end}}{{end}}>
+                    <span class="label" style="background-color:{{$label.Color}}">{{$label.Name}}</span>
                 </label>
                 {{end}}
                 <button type="submit" class="btn btn-sm">Update</button>

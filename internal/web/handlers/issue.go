@@ -29,10 +29,26 @@ func (h *IssueHandler) getRepo(r *http.Request) (*models.Repository, error) {
 	return h.repoStore.GetByOwnerAndName(r.Context(), owner, repoName)
 }
 
+func (h *IssueHandler) checkRepoAccess(r *http.Request, repo *models.Repository, user *models.User) bool {
+	if !repo.IsPrivate {
+		return true
+	}
+	if user == nil {
+		return false
+	}
+	has, _ := h.repoStore.HasAccess(r.Context(), repo.ID, user.ID, "read")
+	return has
+}
+
 func (h *IssueHandler) List(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	repo, err := h.getRepo(r)
 	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if !h.checkRepoAccess(r, repo, user) {
 		http.NotFound(w, r)
 		return
 	}
@@ -89,6 +105,11 @@ func (h *IssueHandler) View(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !h.checkRepoAccess(r, repo, user) {
+		http.NotFound(w, r)
+		return
+	}
+
 	num, _ := strconv.Atoi(chi.URLParam(r, "number"))
 	issue, err := h.issueStore.GetByNumber(r.Context(), repo.ID, num)
 	if err != nil {
@@ -119,6 +140,11 @@ func (h *IssueHandler) NewPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !h.checkRepoAccess(r, repo, user) {
+		http.NotFound(w, r)
+		return
+	}
+
 	labels, _ := h.issueStore.ListLabels(r.Context(), repo.ID)
 	milestones, _ := h.issueStore.ListMilestones(r.Context(), repo.ID)
 
@@ -135,6 +161,11 @@ func (h *IssueHandler) Create(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	repo, err := h.getRepo(r)
 	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if !h.checkRepoAccess(r, repo, user) {
 		http.NotFound(w, r)
 		return
 	}
@@ -180,6 +211,11 @@ func (h *IssueHandler) EditPage(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	repo, err := h.getRepo(r)
 	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if !h.checkRepoAccess(r, repo, user) {
 		http.NotFound(w, r)
 		return
 	}
@@ -468,6 +504,11 @@ func (h *IssueHandler) Labels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !h.checkRepoAccess(r, repo, user) {
+		http.NotFound(w, r)
+		return
+	}
+
 	labels, _ := h.issueStore.ListLabels(r.Context(), repo.ID)
 
 	h.renderer.Render(w, "labels", map[string]interface{}{
@@ -539,6 +580,11 @@ func (h *IssueHandler) Milestones(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	repo, err := h.getRepo(r)
 	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if !h.checkRepoAccess(r, repo, user) {
 		http.NotFound(w, r)
 		return
 	}

@@ -27,8 +27,18 @@
         <span class="label" style="background-color:{{.Color}}">{{.Name}}</span>
         <span class="text-muted">{{.Description}}</span>
         <div class="label-actions">
+            <button class="btn btn-sm" onclick="this.parentElement.nextElementSibling.style.display='block'; this.parentElement.style.display='none';">Edit</button>
             <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/labels/{{.ID}}/delete" style="display:inline">
                 <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this label?')">Delete</button>
+            </form>
+        </div>
+        <div class="label-edit" style="display:none">
+            <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/labels/{{.ID}}/edit" class="form-inline">
+                <input type="text" name="name" value="{{.Name}}" required>
+                <input type="color" name="color" value="{{.Color}}">
+                <input type="text" name="description" value="{{.Description}}" placeholder="Description">
+                <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                <button type="button" class="btn btn-sm" onclick="this.closest('.label-edit').style.display='none'; this.closest('.label-edit').previousElementSibling.style.display='';">Cancel</button>
             </form>
         </div>
     </div>

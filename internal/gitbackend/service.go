@@ -318,7 +318,7 @@ func parseDiff(raw string) []*DiffFile {
 
 func (s *Service) IsEmpty(diskPath string) bool {
 	absPath := s.AbsPath(diskPath)
-	cmd := exec.Command("git", "-C", absPath, "rev-parse", "HEAD")
+	cmd := exec.Command("git", "-C", absPath, "rev-parse", "--verify", "HEAD")
 	err := cmd.Run()
 	return err != nil
 }

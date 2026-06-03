@@ -52,6 +52,7 @@ func (s *IssueStore) GetByNumber(ctx context.Context, repoID int64, number int) 
 	if milestoneID.Valid {
 		mid := milestoneID.Int64
 		issue.MilestoneID = &mid
+		issue.Milestone, _ = s.GetMilestone(ctx, mid)
 	}
 
 	issue.Labels, _ = s.getIssueLabels(ctx, issue.ID)

@@ -48,11 +48,9 @@ func (s *Server) Router() http.Handler {
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
-	r.Use(chimw.Compress(5))
+	r.Use(compressMiddleware)
 
 	authMW := middleware.NewAuthMiddleware(s.sessionStore, s.userStore)
-
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("internal/web/static"))))
 
 	authHandler := handlers.NewAuthHandler(s.userStore, s.sessionStore, s.cfg, s.renderer)
 	repoHandler := handlers.NewRepoHandler(s.repoStore, s.userStore, s.gitSvc, s.cfg, s.renderer)
@@ -60,6 +58,8 @@ func (s *Server) Router() http.Handler {
 	issueHandler := handlers.NewIssueHandler(s.issueStore, s.repoStore, s.userStore, s.renderer)
 	userHandler := handlers.NewUserHandler(s.userStore, s.tokenStore, s.cfg, s.renderer)
 	gitHTTPHandler := handlers.NewGitHTTPHandler(s.repoStore, s.userStore, s.tokenStore, s.gitSvc, s.cfg)
+
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("internal/web/static"))))
 
 	r.Group(func(r chi.Router) {
 		r.Get("/login", authHandler.LoginPage)
@@ -157,6 +157,20 @@ func (s *Server) Router() http.Handler {
 	return r
 }
 
+func compressMiddleware(next http.Handler) http.Handler {
+	compressor := chimw.NewCompressor(5)
+	compressed := compressor.Handler(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/info/refs") ||
+			strings.HasSuffix(r.URL.Path, "/git-upload-pack") ||
+			strings.HasSuffix(r.URL.Path, "/git-receive-pack") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		compressed.ServeHTTP(w, r)
+	})
+}
+
 // Renderer holds pre-parsed templates, one per page.
 type Renderer struct {
 	templates map[string]*template.Template
@@ -182,7 +196,18 @@ func NewRenderer() *Renderer {
 		"timeAgo":     timeAgo,
 		"shortSHA":    func(s string) string { if len(s) > 7 { return s[:7] }; return s },
 		"emojiToHTML": emojiToHTML,
-		"deref":       func(p interface{}) interface{} { return p },
+		"deref": func(p interface{}) interface{} {
+			if p == nil {
+				return nil
+			}
+			if ptr, ok := p.(*int64); ok {
+				if ptr == nil {
+					return int64(0)
+				}
+				return *ptr
+			}
+			return p
+		},
 	}
 
 	r := &Renderer{
