@@ -25,6 +25,7 @@ type SSHKey struct {
 type AccessToken struct {
 	ID        int64      `json:"id"`
 	UserID    int64      `json:"user_id"`
+	OrgID     *int64     `json:"org_id,omitempty"`
 	Name      string     `json:"name"`
 	TokenHash string     `json:"-"`
 	Scopes    string     `json:"scopes"`

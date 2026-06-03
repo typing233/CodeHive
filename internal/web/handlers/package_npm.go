@@ -16,6 +16,7 @@ import (
 	"github.com/codehive/codehive/internal/config"
 	"github.com/codehive/codehive/internal/models"
 	"github.com/codehive/codehive/internal/store"
+	"github.com/codehive/codehive/internal/webhook"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -26,15 +27,17 @@ type NPMHandler struct {
 	userStore    *store.UserStore
 	tokenStore   *store.TokenStore
 	auditStore   *store.AuditStore
+	webhookSvc   *webhook.Dispatcher
 	cfg          *config.Config
 }
 
-func NewNPMHandler(ps *store.PackageStore, us *store.UserStore, ts *store.TokenStore, as *store.AuditStore, cfg *config.Config) *NPMHandler {
+func NewNPMHandler(ps *store.PackageStore, us *store.UserStore, ts *store.TokenStore, as *store.AuditStore, wd *webhook.Dispatcher, cfg *config.Config) *NPMHandler {
 	return &NPMHandler{
 		packageStore: ps,
 		userStore:    us,
 		tokenStore:   ts,
 		auditStore:   as,
+		webhookSvc:   wd,
 		cfg:          cfg,
 	}
 }
@@ -253,6 +256,12 @@ func (h *NPMHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+
+	h.webhookSvc.Dispatch(r.Context(), 0, "package.published", map[string]interface{}{
+		"type":    "npm",
+		"name":    pkgName,
+		"owner":   user.Username,
+	})
 }
 
 func (h *NPMHandler) Unpublish(w http.ResponseWriter, r *http.Request) {
@@ -299,6 +308,13 @@ func (h *NPMHandler) Unpublish(w http.ResponseWriter, r *http.Request) {
 
 	h.auditStore.Log(r.Context(), &user.ID, "package.version.delete", "package", &pkg.ID,
 		map[string]interface{}{"name": pkg.Name, "version": version}, r.RemoteAddr)
+
+	h.webhookSvc.Dispatch(r.Context(), 0, "package.deleted", map[string]interface{}{
+		"type":    "npm",
+		"name":    pkg.Name,
+		"version": version,
+		"owner":   user.Username,
+	})
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})

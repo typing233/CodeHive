@@ -52,6 +52,23 @@ func (s *RepoStore) GetByOwnerAndName(ctx context.Context, owner, name string) (
 	).Scan(&r.ID, &r.OwnerID, &r.Name, &r.Description, &r.IsPrivate, &r.DefaultBranch,
 		&r.DiskPath, &r.SizeBytes, &r.CreatedAt, &r.UpdatedAt,
 		&r.Owner.ID, &r.Owner.Username, &r.Owner.FullName)
+	if err == nil {
+		return r, nil
+	}
+
+	// Fallback: check if owner is an organization name
+	r = &models.Repository{Owner: &models.User{}}
+	err = s.db.QueryRowContext(ctx,
+		`SELECT r.id, r.owner_id, r.name, r.description, r.is_private, r.default_branch,
+		        r.disk_path, r.size_bytes, r.created_at, r.updated_at,
+		        u.id, u.username, u.full_name
+		 FROM repositories r
+		 JOIN organizations o ON r.org_id = o.id
+		 JOIN users u ON r.owner_id = u.id
+		 WHERE o.name = $1 AND r.name = $2`, owner, name,
+	).Scan(&r.ID, &r.OwnerID, &r.Name, &r.Description, &r.IsPrivate, &r.DefaultBranch,
+		&r.DiskPath, &r.SizeBytes, &r.CreatedAt, &r.UpdatedAt,
+		&r.Owner.ID, &r.Owner.Username, &r.Owner.FullName)
 	if err != nil {
 		return nil, err
 	}

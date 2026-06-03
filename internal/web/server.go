@@ -69,17 +69,17 @@ func (s *Server) Router() http.Handler {
 	authMW := middleware.NewAuthMiddleware(s.sessionStore, s.userStore)
 
 	authHandler := handlers.NewAuthHandler(s.userStore, s.sessionStore, s.cfg, s.renderer)
-	repoHandler := handlers.NewRepoHandler(s.repoStore, s.userStore, s.gitSvc, s.cfg, s.renderer)
+	repoHandler := handlers.NewRepoHandler(s.repoStore, s.userStore, s.auditStore, s.gitSvc, s.cfg, s.renderer)
 	browseHandler := handlers.NewBrowseHandler(s.repoStore, s.gitSvc, s.renderer)
 	issueHandler := handlers.NewIssueHandler(s.issueStore, s.repoStore, s.userStore, s.renderer)
 	userHandler := handlers.NewUserHandler(s.userStore, s.tokenStore, s.cfg, s.renderer)
-	gitHTTPHandler := handlers.NewGitHTTPHandler(s.repoStore, s.userStore, s.tokenStore, s.gitSvc, s.cfg)
-	prHandler := handlers.NewPRHandler(s.prStore, s.repoStore, s.issueStore, s.userStore, s.auditStore, s.gitSvc, s.renderer)
+	gitHTTPHandler := handlers.NewGitHTTPHandler(s.repoStore, s.userStore, s.tokenStore, s.gitSvc, s.webhookDispatch, s.cfg)
+	prHandler := handlers.NewPRHandler(s.prStore, s.repoStore, s.issueStore, s.userStore, s.auditStore, s.gitSvc, s.webhookDispatch, s.renderer)
 	orgHandler := handlers.NewOrgHandler(s.orgStore, s.repoStore, s.userStore, s.tokenStore, s.auditStore, s.cfg, s.renderer)
 	webhookHandler := handlers.NewWebhookHandler(s.webhookStore, s.repoStore, s.webhookDispatch, s.renderer)
 	auditHandler := handlers.NewAuditHandler(s.auditStore, s.renderer)
-	npmHandler := handlers.NewNPMHandler(s.packageStore, s.userStore, s.tokenStore, s.auditStore, s.cfg)
-	dockerHandler := handlers.NewDockerHandler(s.packageStore, s.userStore, s.tokenStore, s.auditStore, s.cfg)
+	npmHandler := handlers.NewNPMHandler(s.packageStore, s.userStore, s.tokenStore, s.auditStore, s.webhookDispatch, s.cfg)
+	dockerHandler := handlers.NewDockerHandler(s.packageStore, s.userStore, s.tokenStore, s.auditStore, s.webhookDispatch, s.cfg)
 
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("internal/web/static"))))
 

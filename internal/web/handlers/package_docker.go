@@ -17,6 +17,7 @@ import (
 	"github.com/codehive/codehive/internal/config"
 	"github.com/codehive/codehive/internal/models"
 	"github.com/codehive/codehive/internal/store"
+	"github.com/codehive/codehive/internal/webhook"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -25,6 +26,7 @@ type DockerHandler struct {
 	userStore    *store.UserStore
 	tokenStore   *store.TokenStore
 	auditStore   *store.AuditStore
+	webhookSvc   *webhook.Dispatcher
 	cfg          *config.Config
 	uploads      sync.Map
 }
@@ -34,12 +36,13 @@ type uploadState struct {
 	Size int64
 }
 
-func NewDockerHandler(ps *store.PackageStore, us *store.UserStore, ts *store.TokenStore, as *store.AuditStore, cfg *config.Config) *DockerHandler {
+func NewDockerHandler(ps *store.PackageStore, us *store.UserStore, ts *store.TokenStore, as *store.AuditStore, wd *webhook.Dispatcher, cfg *config.Config) *DockerHandler {
 	return &DockerHandler{
 		packageStore: ps,
 		userStore:    us,
 		tokenStore:   ts,
 		auditStore:   as,
+		webhookSvc:   wd,
 		cfg:          cfg,
 	}
 }
@@ -171,6 +174,13 @@ func (h *DockerHandler) PutManifest(w http.ResponseWriter, r *http.Request) {
 	}
 	h.packageStore.CreateVersion(r.Context(), ver)
 
+	h.webhookSvc.Dispatch(r.Context(), 0, "package.published", map[string]interface{}{
+		"type":      "docker",
+		"name":      name,
+		"reference": reference,
+		"owner":     user.Username,
+	})
+
 	w.Header().Set("Docker-Content-Digest", digestStr)
 	w.Header().Set("Location", fmt.Sprintf("/v2/%s/manifests/%s", name, reference))
 	w.WriteHeader(http.StatusCreated)
@@ -204,6 +214,13 @@ func (h *DockerHandler) DeleteManifest(w http.ResponseWriter, r *http.Request) {
 
 	h.auditStore.Log(r.Context(), &user.ID, "package.manifest.delete", "package", &pkg.ID,
 		map[string]interface{}{"name": name, "reference": reference}, r.RemoteAddr)
+
+	h.webhookSvc.Dispatch(r.Context(), 0, "package.deleted", map[string]interface{}{
+		"type":      "docker",
+		"name":      name,
+		"reference": reference,
+		"owner":     user.Username,
+	})
 
 	w.WriteHeader(http.StatusAccepted)
 }

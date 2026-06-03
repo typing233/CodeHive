@@ -16,15 +16,16 @@ import (
 var repoNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_.-]{1,100}$`)
 
 type RepoHandler struct {
-	repoStore *store.RepoStore
-	userStore *store.UserStore
-	gitSvc    *gitbackend.Service
-	cfg       *config.Config
-	renderer  Renderer
+	repoStore  *store.RepoStore
+	userStore  *store.UserStore
+	auditStore *store.AuditStore
+	gitSvc     *gitbackend.Service
+	cfg        *config.Config
+	renderer   Renderer
 }
 
-func NewRepoHandler(rs *store.RepoStore, us *store.UserStore, gs *gitbackend.Service, cfg *config.Config, r Renderer) *RepoHandler {
-	return &RepoHandler{repoStore: rs, userStore: us, gitSvc: gs, cfg: cfg, renderer: r}
+func NewRepoHandler(rs *store.RepoStore, us *store.UserStore, as *store.AuditStore, gs *gitbackend.Service, cfg *config.Config, r Renderer) *RepoHandler {
+	return &RepoHandler{repoStore: rs, userStore: us, auditStore: as, gitSvc: gs, cfg: cfg, renderer: r}
 }
 
 func (h *RepoHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
@@ -187,12 +188,16 @@ func (h *RepoHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.repoStore.AddCollaborator(r.Context(), repo.ID, collabUser.ID, role)
+		h.auditStore.Log(r.Context(), &user.ID, "permission.change", "repository", &repo.ID,
+			map[string]interface{}{"action": "add_collaborator", "username": username, "role": role}, r.RemoteAddr)
 		http.Redirect(w, r, settingsURL+"?success=Collaborator+added", http.StatusSeeOther)
 
 	case "remove_collaborator":
 		var collabID int64
 		fmt.Sscanf(r.FormValue("user_id"), "%d", &collabID)
 		h.repoStore.RemoveCollaborator(r.Context(), repo.ID, collabID)
+		h.auditStore.Log(r.Context(), &user.ID, "permission.change", "repository", &repo.ID,
+			map[string]interface{}{"action": "remove_collaborator", "target_user_id": collabID}, r.RemoteAddr)
 		http.Redirect(w, r, settingsURL+"?success=Collaborator+removed", http.StatusSeeOther)
 
 	default:
@@ -220,6 +225,9 @@ func (h *RepoHandler) DeleteRepo(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("/%s/%s/settings?error=Please+type+the+repository+name+to+confirm", owner, repoName), http.StatusSeeOther)
 		return
 	}
+
+	h.auditStore.Log(r.Context(), &user.ID, "repo.delete", "repository", &repo.ID,
+		map[string]interface{}{"name": repo.Name, "owner": owner}, r.RemoteAddr)
 
 	h.gitSvc.Delete(repo.DiskPath)
 	h.repoStore.Delete(r.Context(), repo.ID)

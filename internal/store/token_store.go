@@ -36,9 +36,9 @@ func HashToken(raw string) string {
 
 func (s *TokenStore) Create(ctx context.Context, token *models.AccessToken) error {
 	return s.db.QueryRowContext(ctx,
-		`INSERT INTO access_tokens (user_id, name, token_hash, scopes, expires_at)
-		 VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
-		token.UserID, token.Name, token.TokenHash, token.Scopes, token.ExpiresAt,
+		`INSERT INTO access_tokens (user_id, org_id, name, token_hash, scopes, expires_at)
+		 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`,
+		token.UserID, token.OrgID, token.Name, token.TokenHash, token.Scopes, token.ExpiresAt,
 	).Scan(&token.ID, &token.CreatedAt)
 }
 

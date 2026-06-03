@@ -445,6 +445,7 @@ func (h *OrgHandler) CreateToken(w http.ResponseWriter, r *http.Request) {
 
 	token := &models.AccessToken{
 		UserID:    user.ID,
+		OrgID:     &org.ID,
 		Name:      strings.TrimSpace(r.FormValue("name")),
 		TokenHash: hash,
 		Scopes:    r.FormValue("scopes"),

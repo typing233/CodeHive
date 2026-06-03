@@ -6,11 +6,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codehive/codehive/internal/gitbackend"
 	"github.com/codehive/codehive/internal/models"
 	"github.com/codehive/codehive/internal/store"
 	"github.com/codehive/codehive/internal/web/middleware"
+	"github.com/codehive/codehive/internal/webhook"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -21,10 +23,11 @@ type PRHandler struct {
 	userStore  *store.UserStore
 	auditStore *store.AuditStore
 	gitSvc     *gitbackend.Service
+	webhookSvc *webhook.Dispatcher
 	renderer   Renderer
 }
 
-func NewPRHandler(ps *store.PRStore, rs *store.RepoStore, is *store.IssueStore, us *store.UserStore, as *store.AuditStore, gs *gitbackend.Service, rend Renderer) *PRHandler {
+func NewPRHandler(ps *store.PRStore, rs *store.RepoStore, is *store.IssueStore, us *store.UserStore, as *store.AuditStore, gs *gitbackend.Service, wd *webhook.Dispatcher, rend Renderer) *PRHandler {
 	return &PRHandler{
 		prStore:    ps,
 		repoStore:  rs,
@@ -32,6 +35,7 @@ func NewPRHandler(ps *store.PRStore, rs *store.RepoStore, is *store.IssueStore, 
 		userStore:  us,
 		auditStore: as,
 		gitSvc:     gs,
+		webhookSvc: wd,
 		renderer:   rend,
 	}
 }
@@ -160,6 +164,15 @@ func (h *PRHandler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create pull request", http.StatusInternalServerError)
 		return
 	}
+
+	h.webhookSvc.Dispatch(r.Context(), repo.ID, "pr.opened", map[string]interface{}{
+		"action": "opened",
+		"number": pr.Number,
+		"title":  pr.Title,
+		"author": user.Username,
+		"head":   pr.HeadBranch,
+		"base":   pr.BaseBranch,
+	})
 
 	http.Redirect(w, r, fmt.Sprintf("/%s/%s/pulls/%d", owner, repoName, pr.Number), http.StatusFound)
 }
@@ -336,6 +349,14 @@ func (h *PRHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 
 	h.prStore.AddComment(r.Context(), comment)
 
+	h.webhookSvc.Dispatch(r.Context(), repo.ID, "pr.commented", map[string]interface{}{
+		"action":  "commented",
+		"number":  pr.Number,
+		"author":  user.Username,
+		"body":    body,
+		"is_inline": comment.Path != nil,
+	})
+
 	redirect := fmt.Sprintf("/%s/%s/pulls/%d", owner, repoName, pr.Number)
 	if comment.Path != nil {
 		redirect = fmt.Sprintf("/%s/%s/pulls/%d/diff", owner, repoName, pr.Number)
@@ -377,6 +398,13 @@ func (h *PRHandler) SubmitReview(w http.ResponseWriter, r *http.Request) {
 	}
 	h.prStore.AddReview(r.Context(), review)
 
+	h.webhookSvc.Dispatch(r.Context(), repo.ID, "pr.reviewed", map[string]interface{}{
+		"action":       "reviewed",
+		"number":       pr.Number,
+		"reviewer":     user.Username,
+		"review_state": state,
+	})
+
 	http.Redirect(w, r, fmt.Sprintf("/%s/%s/pulls/%d", owner, repoName, pr.Number), http.StatusFound)
 }
 
@@ -404,6 +432,9 @@ func (h *PRHandler) Merge(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+
+	// Scan linked issues BEFORE merge so we know which to close
+	linkedIssues := h.scanLinkedIssues(r, repo, prLookup)
 
 	// Use transaction with row lock for concurrent merge safety
 	tx, err := h.prStore.DB().BeginTx(r.Context(), nil)
@@ -456,38 +487,51 @@ func (h *PRHandler) Merge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-close linked issues
-	fullPR, _ := h.prStore.GetByNumber(r.Context(), repo.ID, number)
-	if fullPR != nil {
-		h.autoCloseIssues(r, repo, fullPR)
-	}
+	// Auto-close linked issues AFTER successful merge
+	h.closeLinkedIssues(r, repo, linkedIssues)
+
+	h.webhookSvc.Dispatch(r.Context(), repo.ID, "pr.merged", map[string]interface{}{
+		"action":    "merged",
+		"number":    pr.Number,
+		"title":     pr.Title,
+		"merged_by": user.Username,
+		"commit":    commitSHA,
+		"method":    method,
+	})
 
 	http.Redirect(w, r, fmt.Sprintf("/%s/%s/pulls/%d", owner, repoName, number), http.StatusFound)
 }
 
-func (h *PRHandler) autoCloseIssues(r *http.Request, repo *models.Repository, pr *models.PullRequest) {
+func (h *PRHandler) scanLinkedIssues(r *http.Request, repo *models.Repository, pr *models.PullRequest) []int {
 	matches := closeIssuePattern.FindAllStringSubmatch(pr.Body, -1)
 
-	// Also scan commit messages
 	commits, _ := h.gitSvc.ListCommitsBetween(repo.DiskPath, pr.BaseBranch, pr.HeadBranch)
 	for _, c := range commits {
 		matches = append(matches, closeIssuePattern.FindAllStringSubmatch(c.Message, -1)...)
 	}
 
-	closed := make(map[int]bool)
+	seen := make(map[int]bool)
+	var nums []int
 	for _, m := range matches {
 		if len(m) >= 2 {
 			num, _ := strconv.Atoi(m[1])
-			if num > 0 && !closed[num] {
-				closed[num] = true
-				issue, err := h.issueStore.GetByNumber(r.Context(), repo.ID, num)
-				if err == nil && !issue.IsClosed {
-					issue.IsClosed = true
-					now := issue.UpdatedAt
-					issue.ClosedAt = &now
-					h.issueStore.Update(r.Context(), issue)
-				}
+			if num > 0 && !seen[num] {
+				seen[num] = true
+				nums = append(nums, num)
 			}
+		}
+	}
+	return nums
+}
+
+func (h *PRHandler) closeLinkedIssues(r *http.Request, repo *models.Repository, issueNums []int) {
+	for _, num := range issueNums {
+		issue, err := h.issueStore.GetByNumber(r.Context(), repo.ID, num)
+		if err == nil && !issue.IsClosed {
+			issue.IsClosed = true
+			now := time.Now()
+			issue.ClosedAt = &now
+			h.issueStore.Update(r.Context(), issue)
 		}
 	}
 }
@@ -516,6 +560,14 @@ func (h *PRHandler) Close(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.prStore.Close(r.Context(), pr.ID)
+
+	h.webhookSvc.Dispatch(r.Context(), repo.ID, "pr.closed", map[string]interface{}{
+		"action": "closed",
+		"number": pr.Number,
+		"title":  pr.Title,
+		"author": user.Username,
+	})
+
 	http.Redirect(w, r, fmt.Sprintf("/%s/%s/pulls/%d", owner, repoName, number), http.StatusFound)
 }
 

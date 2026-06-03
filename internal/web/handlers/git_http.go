@@ -10,6 +10,7 @@ import (
 	"github.com/codehive/codehive/internal/config"
 	"github.com/codehive/codehive/internal/gitbackend"
 	"github.com/codehive/codehive/internal/store"
+	"github.com/codehive/codehive/internal/webhook"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,11 +20,12 @@ type GitHTTPHandler struct {
 	userStore  *store.UserStore
 	tokenStore *store.TokenStore
 	gitSvc     *gitbackend.Service
+	webhookSvc *webhook.Dispatcher
 	cfg        *config.Config
 }
 
-func NewGitHTTPHandler(rs *store.RepoStore, us *store.UserStore, ts *store.TokenStore, gs *gitbackend.Service, cfg *config.Config) *GitHTTPHandler {
-	return &GitHTTPHandler{repoStore: rs, userStore: us, tokenStore: ts, gitSvc: gs, cfg: cfg}
+func NewGitHTTPHandler(rs *store.RepoStore, us *store.UserStore, ts *store.TokenStore, gs *gitbackend.Service, wd *webhook.Dispatcher, cfg *config.Config) *GitHTTPHandler {
+	return &GitHTTPHandler{repoStore: rs, userStore: us, tokenStore: ts, gitSvc: gs, webhookSvc: wd, cfg: cfg}
 }
 
 func (h *GitHTTPHandler) authenticateGitUser(r *http.Request) (int64, bool) {
@@ -117,6 +119,7 @@ func (h *GitHTTPHandler) serveGitPack(w http.ResponseWriter, r *http.Request, gi
 		return
 	}
 
+	var pusherUsername string
 	needsAuth := repo.IsPrivate || minRole == "write"
 	if needsAuth {
 		userID, authenticated := h.authenticateGitUser(r)
@@ -130,6 +133,9 @@ func (h *GitHTTPHandler) serveGitPack(w http.ResponseWriter, r *http.Request, gi
 			http.Error(w, "Access denied", http.StatusForbidden)
 			return
 		}
+		if u, err := h.userStore.GetByID(r.Context(), userID); err == nil {
+			pusherUsername = u.Username
+		}
 	}
 
 	absPath := h.gitSvc.AbsPath(repo.DiskPath)
@@ -140,5 +146,13 @@ func (h *GitHTTPHandler) serveGitPack(w http.ResponseWriter, r *http.Request, gi
 	cmd.Stdin = r.Body
 	cmd.Stdout = w
 	cmd.Stderr = io.Discard
-	cmd.Run()
+	err = cmd.Run()
+
+	if err == nil && gitCmd == "receive-pack" {
+		h.webhookSvc.Dispatch(r.Context(), repo.ID, "push", map[string]interface{}{
+			"repository": repoName,
+			"owner":      owner,
+			"pusher":     pusherUsername,
+		})
+	}
 }
