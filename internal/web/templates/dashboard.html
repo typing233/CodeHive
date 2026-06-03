@@ -1,0 +1,29 @@
+{{template "base" .}}
+{{define "title"}}Dashboard - CodeHive{{end}}
+{{define "content"}}
+<div class="page-header">
+    <h2>Your Repositories</h2>
+    <a href="/new" class="btn btn-primary">+ New Repository</a>
+</div>
+{{if .Repos}}
+<div class="repo-list">
+    {{range .Repos}}
+    <div class="repo-item">
+        <div class="repo-info">
+            <h3><a href="/{{.Owner.Username}}/{{.Name}}">{{.Owner.Username}}/{{.Name}}</a></h3>
+            {{if .Description}}<p>{{.Description}}</p>{{end}}
+        </div>
+        <div class="repo-meta">
+            {{if .IsPrivate}}<span class="badge badge-private">Private</span>{{else}}<span class="badge badge-public">Public</span>{{end}}
+            <span class="text-muted">Updated {{timeAgo .UpdatedAt}}</span>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="empty-state">
+    <p>You don't have any repositories yet.</p>
+    <a href="/new" class="btn btn-primary">Create your first repository</a>
+</div>
+{{end}}
+{{end}}

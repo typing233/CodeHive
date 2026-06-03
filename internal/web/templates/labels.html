@@ -1,0 +1,42 @@
+{{template "base" .}}
+{{define "title"}}Labels - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}">Code</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues">Issues</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/labels" class="active">Labels</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/milestones">Milestones</a>
+</div>
+
+<div class="page-header">
+    <h3>Labels</h3>
+</div>
+
+<form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/labels" class="form-inline label-create">
+    <input type="text" name="name" placeholder="Label name" required>
+    <input type="color" name="color" value="#cccccc">
+    <input type="text" name="description" placeholder="Description (optional)">
+    <button type="submit" class="btn btn-primary btn-sm">Create label</button>
+</form>
+
+{{if .Labels}}
+<div class="label-list">
+    {{range .Labels}}
+    <div class="label-item">
+        <span class="label" style="background-color:{{.Color}}">{{.Name}}</span>
+        <span class="text-muted">{{.Description}}</span>
+        <div class="label-actions">
+            <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/labels/{{.ID}}/delete" style="display:inline">
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this label?')">Delete</button>
+            </form>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<p class="text-muted">No labels yet.</p>
+{{end}}
+{{end}}

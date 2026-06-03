@@ -1,0 +1,46 @@
+{{template "base" .}}
+{{define "title"}}Access Tokens - CodeHive{{end}}
+{{define "content"}}
+<h2>Personal Access Tokens</h2>
+<div class="settings-nav">
+    <a href="/settings">Profile</a>
+    <a href="/settings/keys">SSH Keys</a>
+    <a href="/settings/tokens" class="active">Access Tokens</a>
+</div>
+
+{{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+{{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
+
+{{if .NewToken}}
+<div class="alert alert-success">
+    <strong>New token created!</strong> Copy it now — you won't be able to see it again:
+    <code class="token-display">{{.NewToken}}</code>
+</div>
+{{end}}
+
+<form method="POST" action="/settings/tokens" class="form-card">
+    <div class="form-group">
+        <label for="name">Token Name</label>
+        <input type="text" id="name" name="name" required placeholder="CI/CD, personal scripts, etc.">
+    </div>
+    <button type="submit" class="btn btn-primary">Generate Token</button>
+</form>
+
+{{if .Tokens}}
+<h3>Active Tokens</h3>
+<div class="token-list">
+    {{range .Tokens}}
+    <div class="token-item">
+        <div class="token-info">
+            <strong>{{.Name}}</strong>
+            <span class="text-muted">Created {{timeAgo .CreatedAt}}</span>
+            {{if .LastUsed}}<span class="text-muted">Last used {{timeAgo (deref .LastUsed)}}</span>{{end}}
+        </div>
+        <form method="POST" action="/settings/tokens/{{.ID}}/delete">
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Revoke this token?')">Revoke</button>
+        </form>
+    </div>
+    {{end}}
+</div>
+{{end}}
+{{end}}

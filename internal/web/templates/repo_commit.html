@@ -1,0 +1,31 @@
+{{template "base" .}}
+{{define "title"}}{{shortSHA .Commit.SHA}} - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+</div>
+
+<div class="commit-detail">
+    <h3>{{.Commit.Message}}</h3>
+    <div class="commit-meta">
+        <span>{{.Commit.Author}} &lt;{{.Commit.Email}}&gt;</span>
+        <span>{{timeAgo .Commit.Timestamp}}</span>
+        <code>{{.Commit.SHA}}</code>
+    </div>
+</div>
+
+<div class="diff-view">
+    {{range .Diff}}
+    <div class="diff-file">
+        <div class="diff-file-header">
+            {{if ne .OldName .NewName}}
+            {{.OldName}} &rarr; {{.NewName}}
+            {{else}}
+            {{.NewName}}
+            {{end}}
+        </div>
+        <pre class="diff-content">{{.Patch}}</pre>
+    </div>
+    {{end}}
+</div>
+{{end}}

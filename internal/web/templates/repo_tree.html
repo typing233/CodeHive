@@ -1,0 +1,59 @@
+{{template "base" .}}
+{{define "title"}}{{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+    {{if .Repo.IsPrivate}}<span class="badge badge-private">Private</span>{{end}}
+    {{if .Repo.Description}}<p class="repo-description">{{.Repo.Description}}</p>{{end}}
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}" class="active">Code</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/commits/{{.Ref}}">Commits</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues">Issues</a>
+    {{if .User}}<a href="/{{.Owner.Username}}/{{.Repo.Name}}/settings">Settings</a>{{end}}
+</div>
+
+<div class="branch-selector">
+    <select onchange="window.location.href='/{{.Owner.Username}}/{{.Repo.Name}}/tree/'+this.value">
+        {{range .Branches}}
+        <option value="{{.}}" {{if eq . $.Ref}}selected{{end}}>{{.}}</option>
+        {{end}}
+        {{range .Tags}}
+        <option value="{{.}}" {{if eq . $.Ref}}selected{{end}}>tag: {{.}}</option>
+        {{end}}
+    </select>
+    {{if .Breadcrumb}}
+    <span class="breadcrumb">
+        <a href="/{{.Owner.Username}}/{{.Repo.Name}}/tree/{{.Ref}}">{{.Repo.Name}}</a>
+        {{range .Breadcrumb}} / <a href="/{{$.Owner.Username}}/{{$.Repo.Name}}/tree/{{$.Ref}}/{{.Path}}">{{.Name}}</a>{{end}}
+    </span>
+    {{end}}
+</div>
+
+<div class="file-table">
+    <table>
+        <tbody>
+            {{range .Entries}}
+            <tr>
+                <td class="icon">{{if .IsDir}}📁{{else}}📄{{end}}</td>
+                <td class="name">
+                    {{if .IsDir}}
+                    <a href="/{{$.Owner.Username}}/{{$.Repo.Name}}/tree/{{$.Ref}}/{{if $.Path}}{{$.Path}}/{{end}}{{.Name}}">{{.Name}}</a>
+                    {{else}}
+                    <a href="/{{$.Owner.Username}}/{{$.Repo.Name}}/blob/{{$.Ref}}/{{if $.Path}}{{$.Path}}/{{end}}{{.Name}}">{{.Name}}</a>
+                    {{end}}
+                </td>
+                <td class="size">{{if not .IsDir}}{{.Size}}{{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+{{if .ReadmeHTML}}
+<div class="readme">
+    <div class="readme-header">README.md</div>
+    <div class="readme-body markdown">{{.ReadmeHTML}}</div>
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,33 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{block "title" .}}CodeHive{{end}}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">CodeHive</a>
+            {{if .User}}
+            <div class="nav-links">
+                <a href="/explore">Explore</a>
+                <a href="/new" class="btn btn-sm btn-primary">+ New</a>
+                <div class="nav-user">
+                    <span>{{.User.Username}}</span>
+                    <a href="/settings">Settings</a>
+                    <form method="POST" action="/logout" style="display:inline">
+                        <button type="submit" class="btn-link">Logout</button>
+                    </form>
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </nav>
+    <main class="container">
+        {{block "content" .}}{{end}}
+    </main>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>{{end}}

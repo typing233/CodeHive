@@ -1,0 +1,39 @@
+{{template "base" .}}
+{{define "title"}}{{.FileName}} - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}" class="active">Code</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/commits/{{.Ref}}">Commits</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues">Issues</a>
+</div>
+
+<div class="branch-selector">
+    <select onchange="window.location.href='/{{.Owner.Username}}/{{.Repo.Name}}/blob/'+this.value+'/{{.Path}}'">
+        {{range .Branches}}
+        <option value="{{.}}" {{if eq . $.Ref}}selected{{end}}>{{.}}</option>
+        {{end}}
+    </select>
+    <span class="file-path">{{.Path}}</span>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/raw/{{.Ref}}/{{.Path}}" class="btn btn-sm">Raw</a>
+</div>
+
+<div class="blob-view">
+    {{if .IsBinary}}
+    <p class="text-muted">Binary file not shown.</p>
+    {{else}}
+    <table class="code-table">
+        <tbody>
+            {{range $i, $line := .Lines}}
+            <tr>
+                <td class="line-num">{{add $i 1}}</td>
+                <td class="line-code"><pre>{{$line}}</pre></td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+</div>
+{{end}}

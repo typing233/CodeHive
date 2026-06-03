@@ -1,0 +1,136 @@
+{{template "base" .}}
+{{define "title"}}{{.Issue.Title}} - Issue #{{.Issue.Number}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+</div>
+
+<div class="issue-header">
+    <h2>{{.Issue.Title}} <span class="text-muted">#{{.Issue.Number}}</span></h2>
+    <div class="issue-state {{if .Issue.IsClosed}}closed{{else}}open{{end}}">
+        {{if .Issue.IsClosed}}Closed{{else}}Open{{end}}
+    </div>
+    <span class="text-muted">{{.Issue.Author.Username}} opened this issue {{timeAgo .Issue.CreatedAt}}</span>
+</div>
+
+<div class="issue-layout">
+    <div class="issue-main">
+        <div class="comment issue-body">
+            <div class="comment-header">
+                <strong>{{.Issue.Author.Username}}</strong> <span class="text-muted">{{timeAgo .Issue.CreatedAt}}</span>
+            </div>
+            <div class="comment-body markdown">
+                {{if .Issue.Body}}{{.Issue.Body}}{{else}}<em>No description provided.</em>{{end}}
+            </div>
+            {{if .Issue.Reactions}}
+            <div class="reactions">
+                {{range .Issue.Reactions}}
+                <span class="reaction-badge">{{emojiToHTML .Emoji}} {{.Count}}</span>
+                {{end}}
+            </div>
+            {{end}}
+            {{if $.User}}
+            <div class="reaction-picker">
+                <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/issues/{{$.Issue.Number}}/react" style="display:inline">
+                    {{range $emoji := split "+1,-1,heart,hooray,rocket,eyes" ","}}
+                    <button type="submit" name="emoji" value="{{$emoji}}" class="btn-reaction">{{emojiToHTML $emoji}}</button>
+                    {{end}}
+                </form>
+            </div>
+            {{end}}
+        </div>
+
+        {{range .Comments}}
+        <div class="comment" id="comment-{{.ID}}">
+            <div class="comment-header">
+                <strong>{{.Author.Username}}</strong> <span class="text-muted">{{timeAgo .CreatedAt}}</span>
+                {{if eq .AuthorID $.User.ID}}
+                <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/issues/comments/{{.ID}}/delete" style="display:inline;float:right">
+                    <button type="submit" class="btn-link text-danger" onclick="return confirm('Delete this comment?')">Delete</button>
+                </form>
+                {{end}}
+            </div>
+            <div class="comment-body">{{.Body}}</div>
+            {{if .Reactions}}
+            <div class="reactions">
+                {{range .Reactions}}
+                <span class="reaction-badge">{{emojiToHTML .Emoji}} {{.Count}}</span>
+                {{end}}
+            </div>
+            {{end}}
+            {{if $.User}}
+            <div class="reaction-picker">
+                <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/issues/comments/{{.ID}}/react" style="display:inline">
+                    {{range $emoji := split "+1,-1,heart,hooray,rocket,eyes" ","}}
+                    <button type="submit" name="emoji" value="{{$emoji}}" class="btn-reaction">{{emojiToHTML $emoji}}</button>
+                    {{end}}
+                </form>
+            </div>
+            {{end}}
+        </div>
+        {{end}}
+
+        {{if .User}}
+        <div class="comment-form">
+            <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/issues/{{.Issue.Number}}/comment">
+                <div class="form-group">
+                    <textarea name="body" rows="4" placeholder="Leave a comment..." required></textarea>
+                </div>
+                <div class="form-actions">
+                    {{if not .Issue.IsClosed}}
+                    <button type="submit" class="btn btn-primary">Comment</button>
+                    <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/issues/{{.Issue.Number}}/close" style="display:inline">
+                        <button type="submit" class="btn btn-warning">Close issue</button>
+                    </form>
+                    {{else}}
+                    <button type="submit" class="btn btn-primary">Comment</button>
+                    <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/issues/{{.Issue.Number}}/reopen" style="display:inline">
+                        <button type="submit" class="btn btn-success">Reopen issue</button>
+                    </form>
+                    {{end}}
+                </div>
+            </form>
+        </div>
+        {{end}}
+    </div>
+
+    <div class="issue-sidebar">
+        {{if .User}}
+        <div class="sidebar-section">
+            <h4>Labels</h4>
+            <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/issues/{{.Issue.Number}}/labels">
+                {{range .Labels}}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="label_ids" value="{{.ID}}"
+                        {{range $.Issue.Labels}}{{if eq .ID $.ID}}checked{{end}}{{end}}>
+                    <span class="label" style="background-color:{{.Color}}">{{.Name}}</span>
+                </label>
+                {{end}}
+                <button type="submit" class="btn btn-sm">Update</button>
+            </form>
+        </div>
+
+        <div class="sidebar-section">
+            <h4>Milestone</h4>
+            {{if .Issue.Milestone}}
+            <span>{{.Issue.Milestone.Title}}</span>
+            {{else}}
+            <span class="text-muted">None</span>
+            {{end}}
+        </div>
+
+        <div class="sidebar-section">
+            <h4>Assignees</h4>
+            {{range .Issue.Assignees}}
+            <span class="assignee">{{.Username}}</span>
+            {{end}}
+            {{if not .Issue.Assignees}}<span class="text-muted">None</span>{{end}}
+        </div>
+
+        <div class="sidebar-section">
+            <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues/{{.Issue.Number}}/edit" class="btn btn-sm">Edit issue</a>
+        </div>
+        {{end}}
+    </div>
+</div>
+{{end}}

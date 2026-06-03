@@ -1,0 +1,30 @@
+{{template "base" .}}
+{{define "title"}}Edit Issue #{{.Issue.Number}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+</div>
+
+<h3>Edit Issue #{{.Issue.Number}}</h3>
+<form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/issues/{{.Issue.Number}}/edit" class="form-card">
+    <div class="form-group">
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" value="{{.Issue.Title}}" required>
+    </div>
+    <div class="form-group">
+        <label for="body">Description</label>
+        <textarea id="body" name="body" rows="10">{{.Issue.Body}}</textarea>
+    </div>
+    <div class="form-group">
+        <label for="milestone_id">Milestone</label>
+        <select id="milestone_id" name="milestone_id">
+            <option value="0">None</option>
+            {{range .Milestones}}
+            <option value="{{.ID}}" {{if and $.Issue.MilestoneID (eq .ID (deref $.Issue.MilestoneID))}}selected{{end}}>{{.Title}}</option>
+            {{end}}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Update issue</button>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues/{{.Issue.Number}}" class="btn">Cancel</a>
+</form>
+{{end}}

@@ -1,0 +1,50 @@
+{{template "base" .}}
+{{define "title"}}Issues - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}">Code</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues" class="active">Issues</a>
+    {{if .User}}<a href="/{{.Owner.Username}}/{{.Repo.Name}}/labels">Labels</a>{{end}}
+    {{if .User}}<a href="/{{.Owner.Username}}/{{.Repo.Name}}/milestones">Milestones</a>{{end}}
+</div>
+
+<div class="page-header">
+    <div class="issue-filters">
+        <a href="?state=open" class="{{if eq .State "open"}}active{{end}}">Open</a>
+        <a href="?state=closed" class="{{if eq .State "closed"}}active{{end}}">Closed</a>
+    </div>
+    {{if .User}}<a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues/new" class="btn btn-primary">New Issue</a>{{end}}
+</div>
+
+{{if .Issues}}
+<div class="issue-list">
+    {{range .Issues}}
+    <div class="issue-item">
+        <div class="issue-icon {{if .IsClosed}}closed{{else}}open{{end}}">
+            {{if .IsClosed}}&#x2714;{{else}}&#x25CB;{{end}}
+        </div>
+        <div class="issue-info">
+            <a href="/{{$.Owner.Username}}/{{$.Repo.Name}}/issues/{{.Number}}" class="issue-title">{{.Title}}</a>
+            {{range .Labels}}
+            <span class="label" style="background-color:{{.Color}}">{{.Name}}</span>
+            {{end}}
+            <div class="issue-meta">
+                #{{.Number}} opened {{timeAgo .CreatedAt}} by {{.Author.Username}}
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+<div class="pagination">
+    {{if gt .Page 1}}<a href="?state={{.State}}&page={{sub .Page 1}}" class="btn btn-sm">Previous</a>{{end}}
+    {{if .HasNext}}<a href="?state={{.State}}&page={{add .Page 1}}" class="btn btn-sm">Next</a>{{end}}
+</div>
+{{else}}
+<div class="empty-state">
+    <p>No {{.State}} issues.</p>
+</div>
+{{end}}
+{{end}}

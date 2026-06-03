@@ -1,0 +1,22 @@
+{{template "base" .}}
+{{define "title"}}{{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+    {{if .Repo.IsPrivate}}<span class="badge badge-private">Private</span>{{end}}
+    {{if .Repo.Description}}<p class="repo-description">{{.Repo.Description}}</p>{{end}}
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}" class="active">Code</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues">Issues</a>
+    {{if .User}}<a href="/{{.Owner.Username}}/{{.Repo.Name}}/settings">Settings</a>{{end}}
+</div>
+<div class="empty-repo">
+    <h3>This repository is empty</h3>
+    <p>Get started by pushing an existing repository:</p>
+    <pre><code>git remote add origin {{$.BaseURL}}/{{.Owner.Username}}/{{.Repo.Name}}.git
+git push -u origin {{.Repo.DefaultBranch}}</code></pre>
+    <p>Or clone via SSH:</p>
+    <pre><code>git clone ssh://git@localhost:2222/{{.Owner.Username}}/{{.Repo.Name}}.git</code></pre>
+</div>
+{{end}}

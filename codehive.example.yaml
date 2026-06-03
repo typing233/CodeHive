@@ -1,0 +1,20 @@
+http:
+  port: 3000
+  base_url: "http://localhost:3000"
+
+ssh:
+  port: 2222
+  host_key: "./data/ssh_host_ed25519_key"
+
+database:
+  dsn: "postgres://codehive:codehive@localhost:5432/codehive?sslmode=disable"
+
+git:
+  data_dir: "./data/repos"
+
+session:
+  secret: "change-me-to-a-random-32-byte-string!!"
+  max_age: 604800
+
+log:
+  level: "info"

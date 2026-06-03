@@ -1,0 +1,43 @@
+{{template "base" .}}
+{{define "title"}}SSH Keys - CodeHive{{end}}
+{{define "content"}}
+<h2>SSH Keys</h2>
+<div class="settings-nav">
+    <a href="/settings">Profile</a>
+    <a href="/settings/keys" class="active">SSH Keys</a>
+    <a href="/settings/tokens">Access Tokens</a>
+</div>
+
+{{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+{{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
+
+<form method="POST" action="/settings/keys" class="form-card">
+    <div class="form-group">
+        <label for="name">Key Name</label>
+        <input type="text" id="name" name="name" required placeholder="My laptop">
+    </div>
+    <div class="form-group">
+        <label for="public_key">Public Key</label>
+        <textarea id="public_key" name="public_key" rows="4" required placeholder="ssh-ed25519 AAAA... or ssh-rsa AAAA..."></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Add SSH Key</button>
+</form>
+
+{{if .Keys}}
+<h3>Your Keys</h3>
+<div class="key-list">
+    {{range .Keys}}
+    <div class="key-item">
+        <div class="key-info">
+            <strong>{{.Name}}</strong>
+            <code class="text-muted">{{.Fingerprint}}</code>
+            <span class="text-muted">Added {{timeAgo .CreatedAt}}</span>
+        </div>
+        <form method="POST" action="/settings/keys/{{.ID}}/delete">
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this SSH key?')">Remove</button>
+        </form>
+    </div>
+    {{end}}
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,66 @@
+{{template "base" .}}
+{{define "title"}}Milestones - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}">Code</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues">Issues</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/labels">Labels</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/milestones" class="active">Milestones</a>
+</div>
+
+<div class="page-header">
+    <h3>Milestones</h3>
+</div>
+
+<form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/milestones" class="form-card">
+    <div class="form-row">
+        <div class="form-group">
+            <input type="text" name="title" placeholder="Milestone title" required>
+        </div>
+        <div class="form-group">
+            <input type="date" name="due_date" placeholder="Due date">
+        </div>
+    </div>
+    <div class="form-group">
+        <textarea name="description" rows="2" placeholder="Description (optional)"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Create milestone</button>
+</form>
+
+{{if .Milestones}}
+<div class="milestone-list">
+    {{range .Milestones}}
+    <div class="milestone-item">
+        <div class="milestone-info">
+            <h4>{{.Title}} {{if .IsClosed}}<span class="badge">Closed</span>{{end}}</h4>
+            {{if .Description}}<p>{{.Description}}</p>{{end}}
+            {{if .DueDate}}<span class="text-muted">Due: {{.DueDate.Format "Jan 2, 2006"}}</span>{{end}}
+            <div class="milestone-progress">
+                <progress value="{{.ClosedCount}}" max="{{add .OpenCount .ClosedCount}}"></progress>
+                <span>{{.ClosedCount}}/{{add .OpenCount .ClosedCount}} complete</span>
+            </div>
+        </div>
+        <div class="milestone-actions">
+            {{if .IsClosed}}
+            <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/milestones/{{.ID}}/reopen" style="display:inline">
+                <button type="submit" class="btn btn-sm">Reopen</button>
+            </form>
+            {{else}}
+            <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/milestones/{{.ID}}/close" style="display:inline">
+                <button type="submit" class="btn btn-sm">Close</button>
+            </form>
+            {{end}}
+            <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/milestones/{{.ID}}/delete" style="display:inline">
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this milestone?')">Delete</button>
+            </form>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<p class="text-muted">No milestones yet.</p>
+{{end}}
+{{end}}

@@ -1,0 +1,26 @@
+{{template "base" .}}
+{{define "title"}}Explore - CodeHive{{end}}
+{{define "content"}}
+<div class="page-header">
+    <h2>Explore Repositories</h2>
+</div>
+{{if .Repos}}
+<div class="repo-list">
+    {{range .Repos}}
+    <div class="repo-item">
+        <div class="repo-info">
+            <h3><a href="/{{.Owner.Username}}/{{.Name}}">{{.Owner.Username}}/{{.Name}}</a></h3>
+            {{if .Description}}<p>{{.Description}}</p>{{end}}
+        </div>
+        <div class="repo-meta">
+            <span class="text-muted">Updated {{timeAgo .UpdatedAt}}</span>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="empty-state">
+    <p>No public repositories yet.</p>
+</div>
+{{end}}
+{{end}}

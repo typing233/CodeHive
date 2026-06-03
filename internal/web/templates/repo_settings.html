@@ -1,0 +1,95 @@
+{{template "base" .}}
+{{define "title"}}Settings - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
+{{define "content"}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}">Code</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues">Issues</a>
+    <a href="/{{.Owner.Username}}/{{.Repo.Name}}/settings" class="active">Settings</a>
+</div>
+
+{{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+{{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
+
+<div class="settings-section">
+    <h3>Rename repository</h3>
+    <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/settings">
+        <input type="hidden" name="action" value="rename">
+        <div class="form-group form-inline">
+            <input type="text" name="new_name" value="{{.Repo.Name}}" required pattern="[a-zA-Z0-9_.-]{1,100}">
+            <button type="submit" class="btn btn-warning">Rename</button>
+        </div>
+    </form>
+</div>
+
+<div class="settings-section">
+    <h3>Visibility</h3>
+    <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/settings">
+        <input type="hidden" name="action" value="visibility">
+        <div class="radio-group">
+            <label><input type="radio" name="visibility" value="public" {{if not .Repo.IsPrivate}}checked{{end}}> Public</label>
+            <label><input type="radio" name="visibility" value="private" {{if .Repo.IsPrivate}}checked{{end}}> Private</label>
+        </div>
+        <button type="submit" class="btn">Update visibility</button>
+    </form>
+</div>
+
+<div class="settings-section">
+    <h3>Default branch</h3>
+    <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/settings">
+        <input type="hidden" name="action" value="default_branch">
+        <div class="form-group form-inline">
+            <input type="text" name="default_branch" value="{{.Repo.DefaultBranch}}">
+            <button type="submit" class="btn">Update</button>
+        </div>
+    </form>
+</div>
+
+<div class="settings-section">
+    <h3>Collaborators</h3>
+    {{if .Collaborators}}
+    <table class="table">
+        <tbody>
+        {{range .Collaborators}}
+        <tr>
+            <td>{{.User.Username}}</td>
+            <td>{{.Role}}</td>
+            <td>
+                <form method="POST" action="/{{$.Owner.Username}}/{{$.Repo.Name}}/settings" style="display:inline">
+                    <input type="hidden" name="action" value="remove_collaborator">
+                    <input type="hidden" name="user_id" value="{{.UserID}}">
+                    <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                </form>
+            </td>
+        </tr>
+        {{end}}
+        </tbody>
+    </table>
+    {{end}}
+    <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/settings">
+        <input type="hidden" name="action" value="add_collaborator">
+        <div class="form-group form-inline">
+            <input type="text" name="collaborator" placeholder="Username" required>
+            <select name="role">
+                <option value="read">Read</option>
+                <option value="write" selected>Write</option>
+                <option value="admin">Admin</option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary">Add</button>
+        </div>
+    </form>
+</div>
+
+<div class="settings-section danger-zone">
+    <h3>Danger Zone</h3>
+    <form method="POST" action="/{{.Owner.Username}}/{{.Repo.Name}}/settings/delete">
+        <p>This action <strong>cannot</strong> be undone. Type <strong>{{.Repo.Name}}</strong> to confirm.</p>
+        <div class="form-group form-inline">
+            <input type="text" name="confirm" placeholder="Repository name" required>
+            <button type="submit" class="btn btn-danger">Delete this repository</button>
+        </div>
+    </form>
+</div>
+{{end}}
