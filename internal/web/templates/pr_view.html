@@ -1,0 +1,97 @@
+{{define "pr_view.html"}}{{template "header" .}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner}}">{{.Owner}}</a> / <a href="/{{.Owner}}/{{.RepoName}}">{{.RepoName}}</a></h2>
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner}}/{{.RepoName}}">Code</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls" class="active">Pull Requests</a>
+</div>
+
+<div class="pr-header">
+    <h3>{{.PR.Title}} <span class="pr-number">#{{.PR.Number}}</span></h3>
+    <div class="pr-meta">
+        <span class="pr-state {{.PR.State}}">{{.PR.State}}</span>
+        {{.PR.Author.Username}} wants to merge <code>{{.PR.HeadBranch}}</code> into <code>{{.PR.BaseBranch}}</code>
+    </div>
+</div>
+
+<div class="pr-tabs">
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}" class="active">Conversation</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/commits">Commits</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/diff">Files Changed</a>
+</div>
+
+{{if .PR.Body}}
+<div class="pr-body markdown">{{.PR.Body}}</div>
+{{end}}
+
+{{if .PR.Reviews}}
+<div class="pr-reviews">
+    {{range .PR.Reviews}}
+    <div class="review-item review-{{.State}}">
+        <strong>{{.Author.Username}}</strong>
+        {{if eq .State "approved"}}approved{{else if eq .State "changes_requested"}}requested changes{{else}}commented{{end}}
+        {{if .Body}}<p>{{.Body}}</p>{{end}}
+    </div>
+    {{end}}
+</div>
+{{end}}
+
+{{if .Comments}}
+<div class="comments">
+    {{range .Comments}}
+    <div class="comment">
+        <div class="comment-header">
+            <strong>{{.Author.Username}}</strong> commented {{timeAgo .CreatedAt}}
+        </div>
+        <div class="comment-body">{{.Body}}</div>
+    </div>
+    {{end}}
+</div>
+{{end}}
+
+{{if .User}}
+<div class="pr-actions">
+    {{if eq .PR.State "open"}}
+        {{if .CanWrite}}
+        <div class="merge-section">
+            {{if .CanMerge}}
+            <form method="POST" action="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/merge" class="inline-form">
+                <select name="method">
+                    <option value="merge">Create merge commit</option>
+                    <option value="squash">Squash and merge</option>
+                    <option value="fast-forward">Fast-forward</option>
+                </select>
+                <button type="submit" class="btn btn-success">Merge</button>
+            </form>
+            {{else}}
+            <p class="merge-conflict">This branch has conflicts that must be resolved.</p>
+            {{end}}
+        </div>
+        {{end}}
+
+        <form method="POST" action="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/review" class="review-form">
+            <textarea name="body" rows="3" placeholder="Leave a review comment..." class="form-control"></textarea>
+            <div class="review-buttons">
+                <button type="submit" name="state" value="approved" class="btn btn-success">Approve</button>
+                <button type="submit" name="state" value="changes_requested" class="btn btn-warning">Request Changes</button>
+                <button type="submit" name="state" value="commented" class="btn">Comment</button>
+            </div>
+        </form>
+
+        <form method="POST" action="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/close">
+            <button type="submit" class="btn btn-danger">Close</button>
+        </form>
+    {{else if eq .PR.State "closed"}}
+        <form method="POST" action="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/reopen">
+            <button type="submit" class="btn">Reopen</button>
+        </form>
+    {{end}}
+
+    <form method="POST" action="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/comment" class="comment-form">
+        <textarea name="body" rows="3" placeholder="Leave a comment..." class="form-control"></textarea>
+        <button type="submit" class="btn btn-primary">Comment</button>
+    </form>
+</div>
+{{end}}
+{{template "footer" .}}{{end}}

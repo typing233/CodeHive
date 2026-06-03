@@ -1,0 +1,30 @@
+{{define "org_teams.html"}}{{template "header" .}}
+<div class="org-header"><h2>{{.Org.Name}} - Teams</h2></div>
+<div class="org-nav">
+    <a href="/orgs/{{.Org.Name}}">Overview</a>
+    <a href="/orgs/{{.Org.Name}}/members">Members</a>
+    <a href="/orgs/{{.Org.Name}}/teams" class="active">Teams</a>
+</div>
+
+<form method="POST" action="/orgs/{{.Org.Name}}/teams/new" class="inline-form">
+    <input type="text" name="name" placeholder="Team name" required class="form-control">
+    <select name="permission">
+        <option value="read">Read</option>
+        <option value="write">Write</option>
+        <option value="admin">Admin</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Create Team</button>
+</form>
+
+<div class="team-list">
+{{range .Teams}}
+<div class="team-item">
+    <h4>{{.Name}} <span class="role-badge">{{.Permission}}</span></h4>
+    {{if .Description}}<p>{{.Description}}</p>{{end}}
+    <form method="POST" action="/orgs/{{$.Org.Name}}/teams/{{.ID}}/delete" class="inline">
+        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+    </form>
+</div>
+{{end}}
+</div>
+{{template "footer" .}}{{end}}

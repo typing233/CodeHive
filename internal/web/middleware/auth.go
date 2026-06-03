@@ -73,3 +73,10 @@ func GetUser(r *http.Request) *models.User {
 	}
 	return nil
 }
+
+func UserFromContext(ctx context.Context) *models.User {
+	if user, ok := ctx.Value(UserContextKey).(*models.User); ok {
+		return user
+	}
+	return nil
+}

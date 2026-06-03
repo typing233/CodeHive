@@ -1,0 +1,20 @@
+{{define "org_profile.html"}}{{template "header" .}}
+<div class="org-header">
+    <h2>{{if .Org.DisplayName}}{{.Org.DisplayName}}{{else}}{{.Org.Name}}{{end}}</h2>
+    {{if .Org.Description}}<p>{{.Org.Description}}</p>{{end}}
+</div>
+<div class="org-nav">
+    <a href="/orgs/{{.Org.Name}}" class="active">Overview</a>
+    <a href="/orgs/{{.Org.Name}}/members">Members</a>
+    <a href="/orgs/{{.Org.Name}}/teams">Teams</a>
+    {{if .User}}<a href="/orgs/{{.Org.Name}}/settings">Settings</a>{{end}}
+</div>
+<div class="org-members">
+    <h3>Members ({{len .Members}})</h3>
+    {{range .Members}}
+    <div class="member-item">
+        <strong>{{.User.Username}}</strong> <span class="role-badge">{{.Role}}</span>
+    </div>
+    {{end}}
+</div>
+{{template "footer" .}}{{end}}

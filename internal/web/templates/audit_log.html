@@ -1,0 +1,40 @@
+{{define "audit_log.html"}}{{template "header" .}}
+<h2>Audit Log {{if eq .Scope "org"}}({{.OrgName}}){{else if eq .Scope "repo"}}({{.Owner}}/{{.RepoName}}){{else}}(Site){{end}}</h2>
+
+<div class="audit-filters">
+    <form method="GET" class="inline-form">
+        <select name="action">
+            <option value="">All actions</option>
+            <option value="repo.delete" {{if eq .Filter.Action "repo.delete"}}selected{{end}}>repo.delete</option>
+            <option value="permission.change" {{if eq .Filter.Action "permission.change"}}selected{{end}}>permission.change</option>
+            <option value="package.version.delete" {{if eq .Filter.Action "package.version.delete"}}selected{{end}}>package.version.delete</option>
+            <option value="token.create" {{if eq .Filter.Action "token.create"}}selected{{end}}>token.create</option>
+            <option value="token.delete" {{if eq .Filter.Action "token.delete"}}selected{{end}}>token.delete</option>
+            <option value="org.create" {{if eq .Filter.Action "org.create"}}selected{{end}}>org.create</option>
+            <option value="org.delete" {{if eq .Filter.Action "org.delete"}}selected{{end}}>org.delete</option>
+        </select>
+        <button type="submit" class="btn">Filter</button>
+    </form>
+</div>
+
+{{if .Entries}}
+<table class="audit-table">
+    <thead>
+        <tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>IP</th></tr>
+    </thead>
+    <tbody>
+    {{range .Entries}}
+    <tr>
+        <td>{{timeAgo .CreatedAt}}</td>
+        <td>{{if .Actor}}{{.Actor.Username}}{{else}}system{{end}}</td>
+        <td><code>{{.Action}}</code></td>
+        <td>{{.TargetType}}{{if .TargetID}} #{{deref .TargetID}}{{end}}</td>
+        <td>{{.IPAddress}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+</table>
+{{else}}
+<p>No audit entries found.</p>
+{{end}}
+{{template "footer" .}}{{end}}

@@ -316,6 +316,229 @@ func parseDiff(raw string) []*DiffFile {
 	return files
 }
 
+func (s *Service) GetBranchDiff(diskPath, baseBranch, headBranch string) ([]*DiffFile, error) {
+	absPath := s.AbsPath(diskPath)
+	cmd := exec.Command("git", "-C", absPath, "diff", baseBranch+"..."+headBranch)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	return parseDiff(string(out)), nil
+}
+
+func (s *Service) GetMergeBase(diskPath, base, head string) (string, error) {
+	absPath := s.AbsPath(diskPath)
+	cmd := exec.Command("git", "-C", absPath, "merge-base", base, head)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("merge-base: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func (s *Service) CanMerge(diskPath, base, head string) (bool, error) {
+	absPath := s.AbsPath(diskPath)
+	cmd := exec.Command("git", "-C", absPath, "merge-tree", "--write-tree", base, head)
+	err := cmd.Run()
+	return err == nil, nil
+}
+
+func (s *Service) MergeBranches(diskPath, base, head, method, message, authorName, authorEmail string) (string, error) {
+	absPath := s.AbsPath(diskPath)
+
+	switch method {
+	case "merge":
+		return s.mergeCommit(absPath, base, head, message, authorName, authorEmail)
+	case "squash":
+		return s.squashMerge(absPath, base, head, message, authorName, authorEmail)
+	case "fast-forward":
+		return s.fastForward(absPath, base, head)
+	default:
+		return s.mergeCommit(absPath, base, head, message, authorName, authorEmail)
+	}
+}
+
+func (s *Service) mergeCommit(absPath, base, head, message, authorName, authorEmail string) (string, error) {
+	// Get tree from merge-tree
+	cmd := exec.Command("git", "-C", absPath, "merge-tree", "--write-tree", base, head)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("merge conflict or error: %w", err)
+	}
+	treeHash := strings.TrimSpace(string(out))
+
+	// Get parent SHAs
+	baseSHA, err := s.resolveRefInPath(absPath, base)
+	if err != nil {
+		return "", err
+	}
+	headSHA, err := s.resolveRefInPath(absPath, head)
+	if err != nil {
+		return "", err
+	}
+
+	// Create merge commit
+	cmd = exec.Command("git", "-C", absPath, "commit-tree", treeHash,
+		"-p", baseSHA, "-p", headSHA, "-m", message)
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME="+authorName,
+		"GIT_AUTHOR_EMAIL="+authorEmail,
+		"GIT_COMMITTER_NAME="+authorName,
+		"GIT_COMMITTER_EMAIL="+authorEmail,
+	)
+	out, err = cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("commit-tree: %w", err)
+	}
+	commitSHA := strings.TrimSpace(string(out))
+
+	// Update base branch ref
+	cmd = exec.Command("git", "-C", absPath, "update-ref", "refs/heads/"+base, commitSHA, baseSHA)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("update-ref: %w", err)
+	}
+	return commitSHA, nil
+}
+
+func (s *Service) squashMerge(absPath, base, head, message, authorName, authorEmail string) (string, error) {
+	cmd := exec.Command("git", "-C", absPath, "merge-tree", "--write-tree", base, head)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("merge conflict or error: %w", err)
+	}
+	treeHash := strings.TrimSpace(string(out))
+
+	baseSHA, err := s.resolveRefInPath(absPath, base)
+	if err != nil {
+		return "", err
+	}
+
+	// Single parent (squash = one new commit on base)
+	cmd = exec.Command("git", "-C", absPath, "commit-tree", treeHash, "-p", baseSHA, "-m", message)
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME="+authorName,
+		"GIT_AUTHOR_EMAIL="+authorEmail,
+		"GIT_COMMITTER_NAME="+authorName,
+		"GIT_COMMITTER_EMAIL="+authorEmail,
+	)
+	out, err = cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("commit-tree: %w", err)
+	}
+	commitSHA := strings.TrimSpace(string(out))
+
+	cmd = exec.Command("git", "-C", absPath, "update-ref", "refs/heads/"+base, commitSHA, baseSHA)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("update-ref: %w", err)
+	}
+	return commitSHA, nil
+}
+
+func (s *Service) fastForward(absPath, base, head string) (string, error) {
+	headSHA, err := s.resolveRefInPath(absPath, head)
+	if err != nil {
+		return "", err
+	}
+	baseSHA, err := s.resolveRefInPath(absPath, base)
+	if err != nil {
+		return "", err
+	}
+
+	// Verify fast-forward is possible
+	cmd := exec.Command("git", "-C", absPath, "merge-base", "--is-ancestor", baseSHA, headSHA)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("cannot fast-forward: base is not ancestor of head")
+	}
+
+	cmd = exec.Command("git", "-C", absPath, "update-ref", "refs/heads/"+base, headSHA, baseSHA)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("update-ref: %w", err)
+	}
+	return headSHA, nil
+}
+
+func (s *Service) resolveRefInPath(absPath, ref string) (string, error) {
+	cmd := exec.Command("git", "-C", absPath, "rev-parse", "refs/heads/"+ref)
+	out, err := cmd.Output()
+	if err != nil {
+		// Try as a raw ref
+		cmd = exec.Command("git", "-C", absPath, "rev-parse", ref)
+		out, err = cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("cannot resolve %s: %w", ref, err)
+		}
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func (s *Service) ListCommitsBetween(diskPath, base, head string) ([]*Commit, error) {
+	absPath := s.AbsPath(diskPath)
+	cmd := exec.Command("git", "-C", absPath, "log",
+		"--format=%H||%s||%an||%ae||%aI",
+		base+".."+head)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	var commits []*Commit
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "||", 5)
+		if len(parts) < 5 {
+			continue
+		}
+		ts, _ := time.Parse(time.RFC3339, parts[4])
+		commits = append(commits, &Commit{
+			SHA:       parts[0],
+			Message:   parts[1],
+			Author:    parts[2],
+			Email:     parts[3],
+			Timestamp: ts,
+		})
+	}
+	return commits, nil
+}
+
+func (s *Service) BranchExists(diskPath, branch string) bool {
+	absPath := s.AbsPath(diskPath)
+	cmd := exec.Command("git", "-C", absPath, "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
+	return cmd.Run() == nil
+}
+
+func (s *Service) DeleteBranch(diskPath, branch string) error {
+	absPath := s.AbsPath(diskPath)
+	cmd := exec.Command("git", "-C", absPath, "branch", "-D", branch)
+	_, err := cmd.CombinedOutput()
+	return err
+}
+
+func (s *Service) GetDiffStats(diskPath, base, head string) (added int, deleted int, filesChanged int, err error) {
+	absPath := s.AbsPath(diskPath)
+	cmd := exec.Command("git", "-C", absPath, "diff", "--numstat", base+"..."+head)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line == "" {
+			continue
+		}
+		filesChanged++
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			var a, d int
+			fmt.Sscanf(parts[0], "%d", &a)
+			fmt.Sscanf(parts[1], "%d", &d)
+			added += a
+			deleted += d
+		}
+	}
+	return added, deleted, filesChanged, nil
+}
+
 func (s *Service) IsEmpty(diskPath string) bool {
 	absPath := s.AbsPath(diskPath)
 	cmd := exec.Command("git", "-C", absPath, "rev-parse", "--verify", "HEAD")

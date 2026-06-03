@@ -194,18 +194,47 @@ func (s *RepoStore) HasAccess(ctx context.Context, repoID, userID int64, minRole
 		return true, nil
 	}
 
+	// Check direct collaborator role
 	var role string
 	err = s.db.QueryRowContext(ctx,
 		`SELECT role FROM repo_collaborators WHERE repo_id=$1 AND user_id=$2`, repoID, userID,
 	).Scan(&role)
-	if err == sql.ErrNoRows {
-		return false, nil
+	if err == nil && roleAtLeast(role, minRole) {
+		return true, nil
 	}
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return false, err
 	}
 
-	return roleAtLeast(role, minRole), nil
+	// Check team-based access (org repos)
+	var teamPerm string
+	err = s.db.QueryRowContext(ctx,
+		`SELECT tr.permission FROM team_repos tr
+		 JOIN team_members tm ON tr.team_id = tm.team_id
+		 WHERE tm.user_id = $1 AND tr.repo_id = $2
+		 ORDER BY CASE tr.permission WHEN 'admin' THEN 3 WHEN 'write' THEN 2 ELSE 1 END DESC
+		 LIMIT 1`, userID, repoID,
+	).Scan(&teamPerm)
+	if err == nil && roleAtLeast(teamPerm, minRole) {
+		return true, nil
+	}
+
+	// Check if user is org owner (org owners have admin on all org repos)
+	var orgID sql.NullInt64
+	s.db.QueryRowContext(ctx,
+		`SELECT org_id FROM repositories WHERE id=$1`, repoID,
+	).Scan(&orgID)
+	if orgID.Valid {
+		var orgRole string
+		err = s.db.QueryRowContext(ctx,
+			`SELECT role FROM org_members WHERE org_id=$1 AND user_id=$2`, orgID.Int64, userID,
+		).Scan(&orgRole)
+		if err == nil && orgRole == "owner" {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func roleAtLeast(role, minRole string) bool {

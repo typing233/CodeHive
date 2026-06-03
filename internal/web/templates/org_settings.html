@@ -1,0 +1,22 @@
+{{define "org_settings.html"}}{{template "header" .}}
+<div class="org-header"><h2>{{.Org.Name}} - Settings</h2></div>
+<form method="POST" action="/orgs/{{.Org.Name}}/settings" class="form">
+    <div class="form-group">
+        <label>Display Name</label>
+        <input type="text" name="display_name" value="{{.Org.DisplayName}}" class="form-control">
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" rows="3" class="form-control">{{.Org.Description}}</textarea>
+    </div>
+    <div class="form-group">
+        <label><input type="checkbox" name="is_public" {{if .Org.IsPublic}}checked{{end}}> Public</label>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+<hr>
+<h3>Danger Zone</h3>
+<form method="POST" action="/orgs/{{.Org.Name}}/settings/delete" onsubmit="return confirm('Delete this organization?')">
+    <button type="submit" class="btn btn-danger">Delete Organization</button>
+</form>
+{{template "footer" .}}{{end}}

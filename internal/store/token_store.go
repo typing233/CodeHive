@@ -83,3 +83,46 @@ func (s *TokenStore) Delete(ctx context.Context, id, userID int64) error {
 	)
 	return err
 }
+
+func (s *TokenStore) GetUserByTokenHash(ctx context.Context, hash string) (*models.User, error) {
+	token, err := s.GetByHash(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	user := &models.User{}
+	err = s.db.QueryRowContext(ctx,
+		`SELECT id, username, email, full_name, is_admin FROM users WHERE id=$1`, token.UserID,
+	).Scan(&user.ID, &user.Username, &user.Email, &user.FullName, &user.IsAdmin)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *TokenStore) ListByOrg(ctx context.Context, orgID int64) ([]*models.AccessToken, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, user_id, name, scopes, last_used, expires_at, created_at
+		 FROM access_tokens WHERE org_id = $1 ORDER BY created_at DESC`, orgID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tokens []*models.AccessToken
+	for rows.Next() {
+		t := &models.AccessToken{}
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Name, &t.Scopes, &t.LastUsed, &t.ExpiresAt, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, t)
+	}
+	return tokens, rows.Err()
+}
+
+func (s *TokenStore) DeleteOrgToken(ctx context.Context, id, orgID int64) error {
+	_, err := s.db.ExecContext(ctx,
+		`DELETE FROM access_tokens WHERE id=$1 AND org_id=$2`, id, orgID,
+	)
+	return err
+}

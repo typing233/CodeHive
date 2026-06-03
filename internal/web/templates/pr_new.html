@@ -1,0 +1,33 @@
+{{define "pr_new.html"}}{{template "header" .}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner}}">{{.Owner}}</a> / <a href="/{{.Owner}}/{{.RepoName}}">{{.RepoName}}</a></h2>
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner}}/{{.RepoName}}">Code</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls" class="active">Pull Requests</a>
+</div>
+
+<h3>New Pull Request</h3>
+<form method="POST" action="/{{.Owner}}/{{.RepoName}}/pulls/new" class="form">
+    <div class="form-row">
+        <label>Base Branch</label>
+        <select name="base_branch">
+            {{range .Branches}}<option value="{{.}}" {{if eq . $.Repo.DefaultBranch}}selected{{end}}>{{.}}</option>{{end}}
+        </select>
+        <span>&larr;</span>
+        <label>Head Branch</label>
+        <select name="head_branch">
+            {{range .Branches}}<option value="{{.}}">{{.}}</option>{{end}}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Title</label>
+        <input type="text" name="title" required class="form-control">
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="body" rows="8" class="form-control"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Create Pull Request</button>
+</form>
+{{template "footer" .}}{{end}}

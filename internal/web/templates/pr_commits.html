@@ -1,0 +1,23 @@
+{{define "pr_commits.html"}}{{template "header" .}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner}}">{{.Owner}}</a> / <a href="/{{.Owner}}/{{.RepoName}}">{{.RepoName}}</a></h2>
+</div>
+<div class="pr-tabs">
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}">Conversation</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/commits" class="active">Commits</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/diff">Files Changed</a>
+</div>
+
+<div class="commit-list">
+{{range .Commits}}
+<div class="commit-item">
+    <div class="commit-message">{{.Message}}</div>
+    <div class="commit-meta">
+        <span>{{.Author}}</span>
+        <code>{{shortSHA .SHA}}</code>
+        <span>{{timeAgo .Timestamp}}</span>
+    </div>
+</div>
+{{end}}
+</div>
+{{template "footer" .}}{{end}}

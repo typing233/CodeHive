@@ -1,0 +1,29 @@
+{{define "org_members.html"}}{{template "header" .}}
+<div class="org-header"><h2>{{.Org.Name}} - Members</h2></div>
+<div class="org-nav">
+    <a href="/orgs/{{.Org.Name}}">Overview</a>
+    <a href="/orgs/{{.Org.Name}}/members" class="active">Members</a>
+    <a href="/orgs/{{.Org.Name}}/teams">Teams</a>
+</div>
+
+{{if eq .UserRole "owner"}}
+<form method="POST" action="/orgs/{{.Org.Name}}/members/add" class="inline-form">
+    <input type="text" name="username" placeholder="Username" required class="form-control">
+    <select name="role"><option value="member">Member</option><option value="owner">Owner</option></select>
+    <button type="submit" class="btn btn-primary">Add Member</button>
+</form>
+{{end}}
+
+<div class="member-list">
+{{range .Members}}
+<div class="member-item">
+    <strong>{{.User.Username}}</strong> <span class="role-badge">{{.Role}}</span>
+    {{if eq $.UserRole "owner"}}
+    <form method="POST" action="/orgs/{{$.Org.Name}}/members/{{.UserID}}/remove" class="inline">
+        <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+    </form>
+    {{end}}
+</div>
+{{end}}
+</div>
+{{template "footer" .}}{{end}}

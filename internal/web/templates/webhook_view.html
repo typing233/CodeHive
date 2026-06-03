@@ -1,0 +1,44 @@
+{{define "webhook_view.html"}}{{template "header" .}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner}}">{{.Owner}}</a> / <a href="/{{.Owner}}/{{.RepoName}}">{{.RepoName}}</a> - Webhook</h2>
+</div>
+
+<form method="POST" action="/{{.Owner}}/{{.RepoName}}/settings/webhooks/{{.Webhook.ID}}/edit" class="form">
+    <div class="form-group">
+        <label>Payload URL</label>
+        <input type="url" name="url" value="{{.Webhook.URL}}" required class="form-control">
+    </div>
+    <div class="form-group">
+        <label>Secret</label>
+        <input type="text" name="secret" placeholder="Leave blank to keep current" class="form-control">
+    </div>
+    <div class="form-group">
+        <label><input type="checkbox" name="is_active" {{if .Webhook.IsActive}}checked{{end}}> Active</label>
+    </div>
+    <button type="submit" class="btn btn-primary">Update</button>
+</form>
+
+<form method="POST" action="/{{.Owner}}/{{.RepoName}}/settings/webhooks/{{.Webhook.ID}}/test">
+    <button type="submit" class="btn">Send Test Delivery</button>
+</form>
+
+<form method="POST" action="/{{.Owner}}/{{.RepoName}}/settings/webhooks/{{.Webhook.ID}}/delete">
+    <button type="submit" class="btn btn-danger">Delete Webhook</button>
+</form>
+
+{{if .Deliveries}}
+<h3>Recent Deliveries</h3>
+<div class="delivery-list">
+{{range .Deliveries}}
+<div class="delivery-item">
+    <span class="delivery-event">{{.Event}}</span>
+    <span class="delivery-status {{if and .ResponseCode (le (deref .ResponseCode) 299)}}success{{else}}fail{{end}}">
+        {{if .ResponseCode}}{{deref .ResponseCode}}{{else}}error{{end}}
+    </span>
+    <span>{{.DurationMs}}ms</span>
+    <span>{{timeAgo .DeliveredAt}}</span>
+</div>
+{{end}}
+</div>
+{{end}}
+{{template "footer" .}}{{end}}

@@ -1,0 +1,42 @@
+{{define "pr_list.html"}}{{template "header" .}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner}}">{{.Owner}}</a> / <a href="/{{.Owner}}/{{.RepoName}}">{{.RepoName}}</a></h2>
+</div>
+<div class="repo-nav">
+    <a href="/{{.Owner}}/{{.RepoName}}">Code</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/issues">Issues</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls" class="active">Pull Requests</a>
+</div>
+
+<div class="page-header">
+    <div class="issue-filters">
+        <a href="?state=open" class="{{if eq .State "open"}}active{{end}}">Open</a>
+        <a href="?state=closed" class="{{if eq .State "closed"}}active{{end}}">Closed</a>
+        <a href="?state=merged" class="{{if eq .State "merged"}}active{{end}}">Merged</a>
+    </div>
+    {{if .User}}<a href="/{{.Owner}}/{{.RepoName}}/pulls/new" class="btn btn-primary">New Pull Request</a>{{end}}
+</div>
+
+{{if .PRs}}
+<div class="issue-list">
+    {{range .PRs}}
+    <div class="issue-item">
+        <div class="issue-icon {{.State}}">
+            {{if eq .State "merged"}}&#x2714;{{else if eq .State "closed"}}&#x2716;{{else}}&#x21C4;{{end}}
+        </div>
+        <div class="issue-info">
+            <a href="/{{$.Owner}}/{{$.RepoName}}/pulls/{{.Number}}" class="issue-title">{{.Title}}</a>
+            {{range .Labels}}
+            <span class="label" style="background-color:{{.Color}}">{{.Name}}</span>
+            {{end}}
+            <div class="issue-meta">
+                #{{.Number}} opened by {{.Author.Username}} &middot; {{.HeadBranch}} &rarr; {{.BaseBranch}}
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="empty-state"><p>No pull requests found.</p></div>
+{{end}}
+{{template "footer" .}}{{end}}

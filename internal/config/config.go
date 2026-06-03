@@ -14,6 +14,7 @@ type Config struct {
 	Git      GitConfig      `yaml:"git"`
 	Session  SessionConfig  `yaml:"session"`
 	Log      LogConfig      `yaml:"log"`
+	Packages PackageConfig  `yaml:"packages"`
 }
 
 type HTTPConfig struct {
@@ -43,6 +44,14 @@ type LogConfig struct {
 	Level string `yaml:"level"`
 }
 
+type PackageConfig struct {
+	DataDir        string `yaml:"data_dir"`
+	MaxSizeMB      int    `yaml:"max_size_mb"`
+	ProxyEnabled   bool   `yaml:"proxy_enabled"`
+	NPMUpstream    string `yaml:"npm_upstream"`
+	DockerUpstream string `yaml:"docker_upstream"`
+}
+
 func Load(path string) (*Config, error) {
 	cfg := &Config{
 		HTTP:    HTTPConfig{Port: 3000, BaseURL: "http://localhost:3000"},
@@ -50,6 +59,13 @@ func Load(path string) (*Config, error) {
 		Git:     GitConfig{DataDir: "./data/repos"},
 		Session: SessionConfig{MaxAge: 604800},
 		Log:     LogConfig{Level: "info"},
+		Packages: PackageConfig{
+			DataDir:        "./data/packages",
+			MaxSizeMB:      500,
+			ProxyEnabled:   true,
+			NPMUpstream:    "https://registry.npmjs.org",
+			DockerUpstream: "https://registry-1.docker.io",
+		},
 	}
 
 	data, err := os.ReadFile(path)
@@ -95,5 +111,14 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("CODEHIVE_LOG_LEVEL"); v != "" {
 		cfg.Log.Level = v
+	}
+	if v := os.Getenv("CODEHIVE_PACKAGES_DATA_DIR"); v != "" {
+		cfg.Packages.DataDir = v
+	}
+	if v := os.Getenv("CODEHIVE_PACKAGES_NPM_UPSTREAM"); v != "" {
+		cfg.Packages.NPMUpstream = v
+	}
+	if v := os.Getenv("CODEHIVE_PACKAGES_DOCKER_UPSTREAM"); v != "" {
+		cfg.Packages.DockerUpstream = v
 	}
 }

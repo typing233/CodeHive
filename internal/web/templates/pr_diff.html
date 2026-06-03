@@ -1,0 +1,30 @@
+{{define "pr_diff.html"}}{{template "header" .}}
+<div class="repo-header">
+    <h2><a href="/{{.Owner}}">{{.Owner}}</a> / <a href="/{{.Owner}}/{{.RepoName}}">{{.RepoName}}</a></h2>
+</div>
+<div class="pr-tabs">
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}">Conversation</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/commits">Commits</a>
+    <a href="/{{.Owner}}/{{.RepoName}}/pulls/{{.PR.Number}}/diff" class="active">Files Changed</a>
+</div>
+
+<div class="diff-stats">
+    <span class="stat-files">{{.FilesChanged}} files changed</span>
+    <span class="stat-add">+{{.Added}}</span>
+    <span class="stat-del">-{{.Deleted}}</span>
+</div>
+
+{{range .Diffs}}
+<div class="diff-file">
+    <div class="diff-file-header">{{.NewName}}</div>
+    <div class="diff-content"><pre>{{.Patch}}</pre></div>
+    {{if $.User}}
+    <form method="POST" action="/{{$.Owner}}/{{$.RepoName}}/pulls/{{$.PR.Number}}/comment" class="inline-comment-form">
+        <input type="hidden" name="path" value="{{.NewName}}">
+        <textarea name="body" rows="2" placeholder="Add a comment on this file..." class="form-control"></textarea>
+        <button type="submit" class="btn btn-sm">Comment</button>
+    </form>
+    {{end}}
+</div>
+{{end}}
+{{template "footer" .}}{{end}}

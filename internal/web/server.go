@@ -13,30 +13,46 @@ import (
 	"github.com/codehive/codehive/internal/store"
 	"github.com/codehive/codehive/internal/web/handlers"
 	"github.com/codehive/codehive/internal/web/middleware"
+	"github.com/codehive/codehive/internal/webhook"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
-	cfg          *config.Config
-	userStore    *store.UserStore
-	repoStore    *store.RepoStore
-	issueStore   *store.IssueStore
-	sessionStore *store.SessionStore
-	tokenStore   *store.TokenStore
-	gitSvc       *gitbackend.Service
-	renderer     *Renderer
+	cfg              *config.Config
+	userStore        *store.UserStore
+	repoStore        *store.RepoStore
+	issueStore       *store.IssueStore
+	sessionStore     *store.SessionStore
+	tokenStore       *store.TokenStore
+	prStore          *store.PRStore
+	orgStore         *store.OrgStore
+	auditStore       *store.AuditStore
+	webhookStore     *store.WebhookStore
+	packageStore     *store.PackageStore
+	gitSvc           *gitbackend.Service
+	webhookDispatch  *webhook.Dispatcher
+	renderer         *Renderer
 }
 
-func NewServer(cfg *config.Config, us *store.UserStore, rs *store.RepoStore, is *store.IssueStore, ss *store.SessionStore, ts *store.TokenStore, gs *gitbackend.Service) *Server {
+func NewServer(cfg *config.Config, us *store.UserStore, rs *store.RepoStore, is *store.IssueStore,
+	ss *store.SessionStore, ts *store.TokenStore, ps *store.PRStore, os *store.OrgStore,
+	as *store.AuditStore, ws *store.WebhookStore, pks *store.PackageStore,
+	gs *gitbackend.Service, wd *webhook.Dispatcher) *Server {
 	s := &Server{
-		cfg:          cfg,
-		userStore:    us,
-		repoStore:    rs,
-		issueStore:   is,
-		sessionStore: ss,
-		tokenStore:   ts,
-		gitSvc:       gs,
+		cfg:             cfg,
+		userStore:       us,
+		repoStore:       rs,
+		issueStore:      is,
+		sessionStore:    ss,
+		tokenStore:      ts,
+		prStore:         ps,
+		orgStore:        os,
+		auditStore:      as,
+		webhookStore:    ws,
+		packageStore:    pks,
+		gitSvc:         gs,
+		webhookDispatch: wd,
 	}
 	s.renderer = NewRenderer()
 	return s
@@ -58,9 +74,16 @@ func (s *Server) Router() http.Handler {
 	issueHandler := handlers.NewIssueHandler(s.issueStore, s.repoStore, s.userStore, s.renderer)
 	userHandler := handlers.NewUserHandler(s.userStore, s.tokenStore, s.cfg, s.renderer)
 	gitHTTPHandler := handlers.NewGitHTTPHandler(s.repoStore, s.userStore, s.tokenStore, s.gitSvc, s.cfg)
+	prHandler := handlers.NewPRHandler(s.prStore, s.repoStore, s.issueStore, s.userStore, s.auditStore, s.gitSvc, s.renderer)
+	orgHandler := handlers.NewOrgHandler(s.orgStore, s.repoStore, s.userStore, s.tokenStore, s.auditStore, s.cfg, s.renderer)
+	webhookHandler := handlers.NewWebhookHandler(s.webhookStore, s.repoStore, s.webhookDispatch, s.renderer)
+	auditHandler := handlers.NewAuditHandler(s.auditStore, s.renderer)
+	npmHandler := handlers.NewNPMHandler(s.packageStore, s.userStore, s.tokenStore, s.auditStore, s.cfg)
+	dockerHandler := handlers.NewDockerHandler(s.packageStore, s.userStore, s.tokenStore, s.auditStore, s.cfg)
 
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("internal/web/static"))))
 
+	// Public auth routes
 	r.Group(func(r chi.Router) {
 		r.Get("/login", authHandler.LoginPage)
 		r.Post("/login", authHandler.Login)
@@ -68,6 +91,7 @@ func (s *Server) Router() http.Handler {
 		r.Post("/register", authHandler.Register)
 	})
 
+	// Authenticated routes
 	r.Group(func(r chi.Router) {
 		r.Use(authMW.Required)
 		r.Post("/logout", authHandler.Logout)
@@ -85,14 +109,74 @@ func (s *Server) Router() http.Handler {
 		r.Get("/settings/tokens", userHandler.TokensPage)
 		r.Post("/settings/tokens", userHandler.CreateToken)
 		r.Post("/settings/tokens/{id}/delete", userHandler.DeleteToken)
+
+		// Organization routes
+		r.Get("/orgs/new", orgHandler.NewPage)
+		r.Post("/orgs/new", orgHandler.Create)
+
+		// Admin audit log
+		r.Get("/admin/audit", auditHandler.SiteAudit)
 	})
 
+	// Docker Registry API (v2)
+	r.Route("/v2", func(r chi.Router) {
+		r.Get("/", dockerHandler.VersionCheck)
+		r.Get("/{name}/manifests/{reference}", dockerHandler.GetManifest)
+		r.Put("/{name}/manifests/{reference}", dockerHandler.PutManifest)
+		r.Delete("/{name}/manifests/{reference}", dockerHandler.DeleteManifest)
+		r.Head("/{name}/blobs/{digest}", dockerHandler.HeadBlob)
+		r.Get("/{name}/blobs/{digest}", dockerHandler.GetBlob)
+		r.Post("/{name}/blobs/uploads/", dockerHandler.InitBlobUpload)
+		r.Patch("/{name}/blobs/uploads/{uuid}", dockerHandler.ChunkBlobUpload)
+		r.Put("/{name}/blobs/uploads/{uuid}", dockerHandler.CompleteBlobUpload)
+		r.Get("/{name}/tags/list", dockerHandler.ListTags)
+	})
+
+	// NPM Registry API
+	r.Route("/api/packages/npm", func(r chi.Router) {
+		r.Get("/@{scope}/{name}", npmHandler.GetMetadata)
+		r.Get("/{name}", npmHandler.GetMetadata)
+		r.Get("/@{scope}/{name}/-/{tarball}", npmHandler.DownloadTarball)
+		r.Get("/{name}/-/{tarball}", npmHandler.DownloadTarball)
+		r.Put("/@{scope}/{name}", npmHandler.Publish)
+		r.Put("/{name}", npmHandler.Publish)
+		r.Delete("/@{scope}/{name}/-/{tarball}/-rev/{rev}", npmHandler.Unpublish)
+		r.Delete("/{name}/-/{tarball}/-rev/{rev}", npmHandler.Unpublish)
+	})
+
+	// Git Smart HTTP
 	r.Route("/{owner}/{repo}.git", func(r chi.Router) {
 		r.Get("/info/refs", gitHTTPHandler.InfoRefs)
 		r.Post("/git-upload-pack", gitHTTPHandler.UploadPack)
 		r.Post("/git-receive-pack", gitHTTPHandler.ReceivePack)
 	})
 
+	// Organization routes (dynamic namespace)
+	r.Route("/orgs/{org}", func(r chi.Router) {
+		r.Use(authMW.Optional)
+		r.Get("/", orgHandler.Profile)
+		r.Get("/members", orgHandler.Members)
+		r.Get("/teams", orgHandler.Teams)
+		r.Group(func(r chi.Router) {
+			r.Use(authMW.Required)
+			r.Post("/members/add", orgHandler.AddMember)
+			r.Post("/members/{userID}/remove", orgHandler.RemoveMember)
+			r.Post("/teams/new", orgHandler.CreateTeam)
+			r.Post("/teams/{teamID}/edit", orgHandler.UpdateTeam)
+			r.Post("/teams/{teamID}/delete", orgHandler.DeleteTeam)
+			r.Post("/teams/{teamID}/members", orgHandler.UpdateTeamMembers)
+			r.Post("/teams/{teamID}/repos", orgHandler.UpdateTeamRepos)
+			r.Get("/settings", orgHandler.Settings)
+			r.Post("/settings", orgHandler.UpdateSettings)
+			r.Post("/settings/delete", orgHandler.Delete)
+			r.Get("/settings/tokens", orgHandler.TokensPage)
+			r.Post("/settings/tokens", orgHandler.CreateToken)
+			r.Post("/settings/tokens/{id}/delete", orgHandler.DeleteToken)
+			r.Get("/settings/audit", auditHandler.OrgAudit)
+		})
+	})
+
+	// Repository routes
 	r.Route("/{owner}/{repo}", func(r chi.Router) {
 		r.Use(authMW.Optional)
 
@@ -104,13 +188,51 @@ func (s *Server) Router() http.Handler {
 		r.Get("/commits/{ref}", browseHandler.Commits)
 		r.Get("/commit/{sha}", browseHandler.Commit)
 
+		// Repository settings
 		r.Group(func(r chi.Router) {
 			r.Use(authMW.Required)
 			r.Get("/settings", repoHandler.SettingsPage)
 			r.Post("/settings", repoHandler.UpdateSettings)
 			r.Post("/settings/delete", repoHandler.DeleteRepo)
+
+			// Webhooks (inside repo settings)
+			r.Get("/settings/webhooks", webhookHandler.List)
+			r.Post("/settings/webhooks", webhookHandler.Create)
+			r.Get("/settings/webhooks/{id}", webhookHandler.View)
+			r.Post("/settings/webhooks/{id}/edit", webhookHandler.Update)
+			r.Post("/settings/webhooks/{id}/delete", webhookHandler.Delete)
+			r.Post("/settings/webhooks/{id}/test", webhookHandler.TestDeliver)
+
+			// Repo audit log
+			r.Get("/settings/audit", auditHandler.RepoAudit)
 		})
 
+		// Pull Requests
+		r.Route("/pulls", func(r chi.Router) {
+			r.Get("/", prHandler.List)
+			r.Group(func(r chi.Router) {
+				r.Use(authMW.Required)
+				r.Get("/new", prHandler.NewPage)
+				r.Post("/new", prHandler.Create)
+			})
+			r.Get("/{number}", prHandler.View)
+			r.Get("/{number}/diff", prHandler.Diff)
+			r.Get("/{number}/commits", prHandler.Commits)
+			r.Group(func(r chi.Router) {
+				r.Use(authMW.Required)
+				r.Post("/{number}/comment", prHandler.AddComment)
+				r.Post("/{number}/review", prHandler.SubmitReview)
+				r.Post("/{number}/merge", prHandler.Merge)
+				r.Post("/{number}/close", prHandler.Close)
+				r.Post("/{number}/reopen", prHandler.Reopen)
+				r.Post("/{number}/labels", prHandler.UpdateLabels)
+				r.Post("/{number}/assignees", prHandler.UpdateAssignees)
+				r.Post("/comments/{commentID}/edit", prHandler.EditComment)
+				r.Post("/comments/{commentID}/delete", prHandler.DeleteComment)
+			})
+		})
+
+		// Issues
 		r.Route("/issues", func(r chi.Router) {
 			r.Get("/", issueHandler.List)
 			r.Group(func(r chi.Router) {
@@ -135,6 +257,7 @@ func (s *Server) Router() http.Handler {
 			})
 		})
 
+		// Labels
 		r.Route("/labels", func(r chi.Router) {
 			r.Use(authMW.Required)
 			r.Get("/", issueHandler.Labels)
@@ -143,6 +266,7 @@ func (s *Server) Router() http.Handler {
 			r.Post("/{id}/delete", issueHandler.DeleteLabel)
 		})
 
+		// Milestones
 		r.Route("/milestones", func(r chi.Router) {
 			r.Use(authMW.Required)
 			r.Get("/", issueHandler.Milestones)
@@ -259,7 +383,6 @@ func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) 
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	// Execute the page file's base template name (the filename itself)
 	err := t.ExecuteTemplate(w, name+".html", data)
 	if err != nil {
 		log.Printf("Template render error (%s): %v", name, err)

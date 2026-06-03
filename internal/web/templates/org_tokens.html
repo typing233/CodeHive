@@ -1,0 +1,32 @@
+{{define "org_tokens.html"}}{{template "header" .}}
+<div class="org-header"><h2>{{.Org.Name}} - Access Tokens</h2></div>
+
+{{if .NewToken}}
+<div class="alert alert-success">
+    <strong>New token created:</strong> <code>{{.NewToken}}</code>
+    <p>Copy this token now. You won't be able to see it again.</p>
+</div>
+{{end}}
+
+<form method="POST" action="/orgs/{{.Org.Name}}/settings/tokens" class="inline-form">
+    <input type="text" name="name" placeholder="Token name" required class="form-control">
+    <select name="scopes">
+        <option value="repo,packages">repo + packages</option>
+        <option value="repo">repo only</option>
+        <option value="packages">packages only</option>
+        <option value="admin">admin</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Create Token</button>
+</form>
+
+<div class="token-list">
+{{range .Tokens}}
+<div class="token-item">
+    <strong>{{.Name}}</strong> <span class="token-scopes">{{.Scopes}}</span>
+    <form method="POST" action="/orgs/{{$.Org.Name}}/settings/tokens/{{.ID}}/delete" class="inline">
+        <button type="submit" class="btn btn-sm btn-danger">Revoke</button>
+    </form>
+</div>
+{{end}}
+</div>
+{{template "footer" .}}{{end}}

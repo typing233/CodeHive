@@ -17,6 +17,7 @@ import (
 	"github.com/codehive/codehive/internal/ssh"
 	"github.com/codehive/codehive/internal/store"
 	"github.com/codehive/codehive/internal/web"
+	"github.com/codehive/codehive/internal/webhook"
 )
 
 var Version = "dev"
@@ -54,14 +55,23 @@ func main() {
 	if err := os.MkdirAll(cfg.Git.DataDir, 0755); err != nil {
 		log.Fatalf("Failed to create git data dir: %v", err)
 	}
+	if err := os.MkdirAll(cfg.Packages.DataDir, 0755); err != nil {
+		log.Fatalf("Failed to create packages data dir: %v", err)
+	}
 
 	userStore := store.NewUserStore(db)
 	repoStore := store.NewRepoStore(db)
 	issueStore := store.NewIssueStore(db)
 	sessionStore := store.NewSessionStore(db)
 	tokenStore := store.NewTokenStore(db)
+	prStore := store.NewPRStore(db)
+	orgStore := store.NewOrgStore(db)
+	auditStore := store.NewAuditStore(db)
+	webhookStore := store.NewWebhookStore(db)
+	packageStore := store.NewPackageStore(db)
 
 	gitSvc := gitbackend.NewService(cfg.Git.DataDir)
+	webhookDispatcher := webhook.NewDispatcher(webhookStore)
 
 	sshServer := ssh.NewServer(cfg, userStore, repoStore, gitSvc)
 	go func() {
@@ -71,7 +81,8 @@ func main() {
 		}
 	}()
 
-	httpServer := web.NewServer(cfg, userStore, repoStore, issueStore, sessionStore, tokenStore, gitSvc)
+	httpServer := web.NewServer(cfg, userStore, repoStore, issueStore, sessionStore, tokenStore,
+		prStore, orgStore, auditStore, webhookStore, packageStore, gitSvc, webhookDispatcher)
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%d", cfg.HTTP.Port),
 		Handler:        httpServer.Router(),
