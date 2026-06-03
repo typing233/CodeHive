@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}Labels - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
-{{define "content"}}
+{{define "labels.html"}}{{template "header" .}}
 <div class="repo-header">
     <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
 </div>
@@ -39,4 +37,4 @@
 {{else}}
 <p class="text-muted">No labels yet.</p>
 {{end}}
-{{end}}
+{{template "footer" .}}{{end}}

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"regexp"
 	"strings"
@@ -21,18 +20,18 @@ type RepoHandler struct {
 	userStore *store.UserStore
 	gitSvc    *gitbackend.Service
 	cfg       *config.Config
-	templates *template.Template
+	renderer  Renderer
 }
 
-func NewRepoHandler(rs *store.RepoStore, us *store.UserStore, gs *gitbackend.Service, cfg *config.Config, tmpl *template.Template) *RepoHandler {
-	return &RepoHandler{repoStore: rs, userStore: us, gitSvc: gs, cfg: cfg, templates: tmpl}
+func NewRepoHandler(rs *store.RepoStore, us *store.UserStore, gs *gitbackend.Service, cfg *config.Config, r Renderer) *RepoHandler {
+	return &RepoHandler{repoStore: rs, userStore: us, gitSvc: gs, cfg: cfg, renderer: r}
 }
 
 func (h *RepoHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	repos, _ := h.repoStore.ListByUser(r.Context(), user.ID)
 
-	h.templates.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
+	h.renderer.Render(w, "dashboard", map[string]interface{}{
 		"User":  user,
 		"Repos": repos,
 	})
@@ -42,7 +41,7 @@ func (h *RepoHandler) Explore(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	repos, _ := h.repoStore.ListPublic(r.Context(), 1, 50)
 
-	h.templates.ExecuteTemplate(w, "explore.html", map[string]interface{}{
+	h.renderer.Render(w, "explore", map[string]interface{}{
 		"User":  user,
 		"Repos": repos,
 	})
@@ -50,7 +49,7 @@ func (h *RepoHandler) Explore(w http.ResponseWriter, r *http.Request) {
 
 func (h *RepoHandler) NewRepoPage(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
-	h.templates.ExecuteTemplate(w, "repo_new.html", map[string]interface{}{
+	h.renderer.Render(w, "repo_new", map[string]interface{}{
 		"User":  user,
 		"Error": r.URL.Query().Get("error"),
 	})
@@ -119,7 +118,7 @@ func (h *RepoHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 
 	collabs, _ := h.repoStore.ListCollaborators(r.Context(), repo.ID)
 
-	h.templates.ExecuteTemplate(w, "repo_settings.html", map[string]interface{}{
+	h.renderer.Render(w, "repo_settings", map[string]interface{}{
 		"User":          user,
 		"Repo":          repo,
 		"Owner":         repo.Owner,

@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}Commits - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
-{{define "content"}}
+{{define "repo_commits.html"}}{{template "header" .}}
 <div class="repo-header">
     <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
 </div>
@@ -39,4 +37,4 @@
     {{if gt .Page 1}}<a href="?page={{sub .Page 1}}" class="btn btn-sm">Previous</a>{{end}}
     {{if .HasNext}}<a href="?page={{add .Page 1}}" class="btn btn-sm">Next</a>{{end}}
 </div>
-{{end}}
+{{template "footer" .}}{{end}}

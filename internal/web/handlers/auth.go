@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"html/template"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -20,15 +20,15 @@ type AuthHandler struct {
 	userStore    *store.UserStore
 	sessionStore *store.SessionStore
 	cfg          *config.Config
-	templates    *template.Template
+	renderer     Renderer
 }
 
-func NewAuthHandler(us *store.UserStore, ss *store.SessionStore, cfg *config.Config, tmpl *template.Template) *AuthHandler {
-	return &AuthHandler{userStore: us, sessionStore: ss, cfg: cfg, templates: tmpl}
+func NewAuthHandler(us *store.UserStore, ss *store.SessionStore, cfg *config.Config, r Renderer) *AuthHandler {
+	return &AuthHandler{userStore: us, sessionStore: ss, cfg: cfg, renderer: r}
 }
 
 func (h *AuthHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	h.templates.ExecuteTemplate(w, "login.html", map[string]interface{}{
+	h.renderer.Render(w, "login", map[string]interface{}{
 		"Error": r.URL.Query().Get("error"),
 	})
 }
@@ -48,7 +48,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	sess := &models.Session{
 		UserID:    user.ID,
-		IPAddress: r.RemoteAddr,
+		IPAddress: clientIP(r),
 		UserAgent: r.UserAgent(),
 		ExpiresAt: time.Now().Add(time.Duration(h.cfg.Session.MaxAge) * time.Second),
 	}
@@ -69,7 +69,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
-	h.templates.ExecuteTemplate(w, "register.html", map[string]interface{}{
+	h.renderer.Render(w, "register", map[string]interface{}{
 		"Error": r.URL.Query().Get("error"),
 	})
 }
@@ -120,11 +120,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	sess := &models.Session{
 		UserID:    user.ID,
-		IPAddress: r.RemoteAddr,
+		IPAddress: clientIP(r),
 		UserAgent: r.UserAgent(),
 		ExpiresAt: time.Now().Add(time.Duration(h.cfg.Session.MaxAge) * time.Second),
 	}
-	h.sessionStore.Create(r.Context(), sess)
+	if err := h.sessionStore.Create(r.Context(), sess); err != nil {
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "codehive_session",
 		Value:    sess.ID,
@@ -143,6 +146,14 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{Name: "codehive_session", MaxAge: -1, Path: "/"})
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
 
 func CurrentUser(r *http.Request) *models.User {

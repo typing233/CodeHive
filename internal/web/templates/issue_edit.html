@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}Edit Issue #{{.Issue.Number}} - CodeHive{{end}}
-{{define "content"}}
+{{define "issue_edit.html"}}{{template "header" .}}
 <div class="repo-header">
     <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
 </div>
@@ -27,4 +25,4 @@
     <button type="submit" class="btn btn-primary">Update issue</button>
     <a href="/{{.Owner.Username}}/{{.Repo.Name}}/issues/{{.Issue.Number}}" class="btn">Cancel</a>
 </form>
-{{end}}
+{{template "footer" .}}{{end}}

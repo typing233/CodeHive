@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}{{.Issue.Title}} - Issue #{{.Issue.Number}} - CodeHive{{end}}
-{{define "content"}}
+{{define "issue_view.html"}}{{template "header" .}}
 <div class="repo-header">
     <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
 </div>
@@ -133,4 +131,4 @@
         {{end}}
     </div>
 </div>
-{{end}}
+{{template "footer" .}}{{end}}

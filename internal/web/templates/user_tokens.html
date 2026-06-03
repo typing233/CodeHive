@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}Access Tokens - CodeHive{{end}}
-{{define "content"}}
+{{define "user_tokens.html"}}{{template "header" .}}
 <h2>Personal Access Tokens</h2>
 <div class="settings-nav">
     <a href="/settings">Profile</a>
@@ -43,4 +41,4 @@
     {{end}}
 </div>
 {{end}}
-{{end}}
+{{template "footer" .}}{{end}}

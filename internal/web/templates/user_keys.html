@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}SSH Keys - CodeHive{{end}}
-{{define "content"}}
+{{define "user_keys.html"}}{{template "header" .}}
 <h2>SSH Keys</h2>
 <div class="settings-nav">
     <a href="/settings">Profile</a>
@@ -40,4 +38,4 @@
     {{end}}
 </div>
 {{end}}
-{{end}}
+{{template "footer" .}}{{end}}

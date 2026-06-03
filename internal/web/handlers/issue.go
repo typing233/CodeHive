@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,11 +16,11 @@ type IssueHandler struct {
 	issueStore *store.IssueStore
 	repoStore  *store.RepoStore
 	userStore  *store.UserStore
-	templates  *template.Template
+	renderer   Renderer
 }
 
-func NewIssueHandler(is *store.IssueStore, rs *store.RepoStore, us *store.UserStore, tmpl *template.Template) *IssueHandler {
-	return &IssueHandler{issueStore: is, repoStore: rs, userStore: us, templates: tmpl}
+func NewIssueHandler(is *store.IssueStore, rs *store.RepoStore, us *store.UserStore, r Renderer) *IssueHandler {
+	return &IssueHandler{issueStore: is, repoStore: rs, userStore: us, renderer: r}
 }
 
 func (h *IssueHandler) getRepo(r *http.Request) (*models.Repository, error) {
@@ -67,7 +66,7 @@ func (h *IssueHandler) List(w http.ResponseWriter, r *http.Request) {
 	labels, _ := h.issueStore.ListLabels(r.Context(), repo.ID)
 	milestones, _ := h.issueStore.ListMilestones(r.Context(), repo.ID)
 
-	h.templates.ExecuteTemplate(w, "issue_list.html", map[string]interface{}{
+	h.renderer.Render(w, "issue_list", map[string]interface{}{
 		"User":       user,
 		"Repo":       repo,
 		"Owner":      repo.Owner,
@@ -101,7 +100,7 @@ func (h *IssueHandler) View(w http.ResponseWriter, r *http.Request) {
 	labels, _ := h.issueStore.ListLabels(r.Context(), repo.ID)
 	milestones, _ := h.issueStore.ListMilestones(r.Context(), repo.ID)
 
-	h.templates.ExecuteTemplate(w, "issue_view.html", map[string]interface{}{
+	h.renderer.Render(w, "issue_view", map[string]interface{}{
 		"User":       user,
 		"Repo":       repo,
 		"Owner":      repo.Owner,
@@ -123,7 +122,7 @@ func (h *IssueHandler) NewPage(w http.ResponseWriter, r *http.Request) {
 	labels, _ := h.issueStore.ListLabels(r.Context(), repo.ID)
 	milestones, _ := h.issueStore.ListMilestones(r.Context(), repo.ID)
 
-	h.templates.ExecuteTemplate(w, "issue_new.html", map[string]interface{}{
+	h.renderer.Render(w, "issue_new", map[string]interface{}{
 		"User":       user,
 		"Repo":       repo,
 		"Owner":      repo.Owner,
@@ -195,7 +194,7 @@ func (h *IssueHandler) EditPage(w http.ResponseWriter, r *http.Request) {
 	labels, _ := h.issueStore.ListLabels(r.Context(), repo.ID)
 	milestones, _ := h.issueStore.ListMilestones(r.Context(), repo.ID)
 
-	h.templates.ExecuteTemplate(w, "issue_edit.html", map[string]interface{}{
+	h.renderer.Render(w, "issue_edit", map[string]interface{}{
 		"User":       user,
 		"Repo":       repo,
 		"Owner":      repo.Owner,
@@ -471,7 +470,7 @@ func (h *IssueHandler) Labels(w http.ResponseWriter, r *http.Request) {
 
 	labels, _ := h.issueStore.ListLabels(r.Context(), repo.ID)
 
-	h.templates.ExecuteTemplate(w, "labels.html", map[string]interface{}{
+	h.renderer.Render(w, "labels", map[string]interface{}{
 		"User":   user,
 		"Repo":   repo,
 		"Owner":  repo.Owner,
@@ -546,7 +545,7 @@ func (h *IssueHandler) Milestones(w http.ResponseWriter, r *http.Request) {
 
 	milestones, _ := h.issueStore.ListMilestones(r.Context(), repo.ID)
 
-	h.templates.ExecuteTemplate(w, "milestones.html", map[string]interface{}{
+	h.renderer.Render(w, "milestones", map[string]interface{}{
 		"User":       user,
 		"Repo":       repo,
 		"Owner":      repo.Owner,

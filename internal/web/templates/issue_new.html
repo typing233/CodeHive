@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}New Issue - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
-{{define "content"}}
+{{define "issue_new.html"}}{{template "header" .}}
 <div class="repo-header">
     <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
 </div>
@@ -37,4 +35,4 @@
     </div>
     <button type="submit" class="btn btn-primary">Submit new issue</button>
 </form>
-{{end}}
+{{template "footer" .}}{{end}}

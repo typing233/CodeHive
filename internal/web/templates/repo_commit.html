@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}{{shortSHA .Commit.SHA}} - {{.Owner.Username}}/{{.Repo.Name}} - CodeHive{{end}}
-{{define "content"}}
+{{define "repo_commit.html"}}{{template "header" .}}
 <div class="repo-header">
     <h2><a href="/{{.Owner.Username}}">{{.Owner.Username}}</a> / <a href="/{{.Owner.Username}}/{{.Repo.Name}}">{{.Repo.Name}}</a></h2>
 </div>
@@ -28,4 +26,4 @@
     </div>
     {{end}}
 </div>
-{{end}}
+{{template "footer" .}}{{end}}

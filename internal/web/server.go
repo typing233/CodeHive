@@ -25,7 +25,7 @@ type Server struct {
 	sessionStore *store.SessionStore
 	tokenStore   *store.TokenStore
 	gitSvc       *gitbackend.Service
-	templates    *template.Template
+	renderer     *Renderer
 }
 
 func NewServer(cfg *config.Config, us *store.UserStore, rs *store.RepoStore, is *store.IssueStore, ss *store.SessionStore, ts *store.TokenStore, gs *gitbackend.Service) *Server {
@@ -38,52 +38,8 @@ func NewServer(cfg *config.Config, us *store.UserStore, rs *store.RepoStore, is 
 		tokenStore:   ts,
 		gitSvc:       gs,
 	}
-	s.loadTemplates()
+	s.renderer = NewRenderer()
 	return s
-}
-
-func (s *Server) loadTemplates() {
-	funcMap := template.FuncMap{
-		"split":       strings.Split,
-		"join":        strings.Join,
-		"hasPrefix":   strings.HasPrefix,
-		"hasSuffix":   strings.HasSuffix,
-		"trimPrefix":  strings.TrimPrefix,
-		"toLower":     strings.ToLower,
-		"toUpper":     strings.ToUpper,
-		"safeHTML":    func(s string) template.HTML { return template.HTML(s) },
-		"pathJoin":    filepath.Join,
-		"add":         func(a, b int) int { return a + b },
-		"sub":         func(a, b int) int { return a - b },
-		"mul":         func(a, b int) int { return a * b },
-		"seq":         seq,
-		"truncate":    truncate,
-		"timeAgo":     timeAgo,
-		"shortSHA":    func(s string) string { if len(s) > 7 { return s[:7] }; return s },
-		"emojiToHTML": emojiToHTML,
-		"deref": func(p interface{}) interface{} { return p },
-	}
-
-	tmpl := template.New("").Funcs(funcMap)
-
-	var files []string
-	filepath.WalkDir("internal/web/templates", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() && strings.HasSuffix(path, ".html") {
-			files = append(files, path)
-		}
-		return nil
-	})
-
-	if len(files) > 0 {
-		_, err := tmpl.ParseFiles(files...)
-		if err != nil {
-			log.Fatalf("Failed to parse templates: %v", err)
-		}
-	}
-	s.templates = tmpl
 }
 
 func (s *Server) Router() http.Handler {
@@ -98,11 +54,11 @@ func (s *Server) Router() http.Handler {
 
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("internal/web/static"))))
 
-	authHandler := handlers.NewAuthHandler(s.userStore, s.sessionStore, s.cfg, s.templates)
-	repoHandler := handlers.NewRepoHandler(s.repoStore, s.userStore, s.gitSvc, s.cfg, s.templates)
-	browseHandler := handlers.NewBrowseHandler(s.repoStore, s.gitSvc, s.templates)
-	issueHandler := handlers.NewIssueHandler(s.issueStore, s.repoStore, s.userStore, s.templates)
-	userHandler := handlers.NewUserHandler(s.userStore, s.tokenStore, s.cfg, s.templates)
+	authHandler := handlers.NewAuthHandler(s.userStore, s.sessionStore, s.cfg, s.renderer)
+	repoHandler := handlers.NewRepoHandler(s.repoStore, s.userStore, s.gitSvc, s.cfg, s.renderer)
+	browseHandler := handlers.NewBrowseHandler(s.repoStore, s.gitSvc, s.renderer)
+	issueHandler := handlers.NewIssueHandler(s.issueStore, s.repoStore, s.userStore, s.renderer)
+	userHandler := handlers.NewUserHandler(s.userStore, s.tokenStore, s.cfg, s.renderer)
 	gitHTTPHandler := handlers.NewGitHTTPHandler(s.repoStore, s.userStore, s.tokenStore, s.gitSvc, s.cfg)
 
 	r.Group(func(r chi.Router) {
@@ -199,4 +155,89 @@ func (s *Server) Router() http.Handler {
 	})
 
 	return r
+}
+
+// Renderer holds pre-parsed templates, one per page.
+type Renderer struct {
+	templates map[string]*template.Template
+	funcMap   template.FuncMap
+}
+
+func NewRenderer() *Renderer {
+	funcMap := template.FuncMap{
+		"split":       strings.Split,
+		"join":        strings.Join,
+		"hasPrefix":   strings.HasPrefix,
+		"hasSuffix":   strings.HasSuffix,
+		"trimPrefix":  strings.TrimPrefix,
+		"toLower":     strings.ToLower,
+		"toUpper":     strings.ToUpper,
+		"safeHTML":    func(s string) template.HTML { return template.HTML(s) },
+		"pathJoin":    filepath.Join,
+		"add":         func(a, b int) int { return a + b },
+		"sub":         func(a, b int) int { return a - b },
+		"mul":         func(a, b int) int { return a * b },
+		"seq":         seq,
+		"truncate":    truncate,
+		"timeAgo":     timeAgo,
+		"shortSHA":    func(s string) string { if len(s) > 7 { return s[:7] }; return s },
+		"emojiToHTML": emojiToHTML,
+		"deref":       func(p interface{}) interface{} { return p },
+	}
+
+	r := &Renderer{
+		templates: make(map[string]*template.Template),
+		funcMap:   funcMap,
+	}
+
+	layoutFiles := []string{
+		"internal/web/templates/layout/base.html",
+	}
+
+	var pageFiles []string
+	filepath.WalkDir("internal/web/templates", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(path, ".html") && !strings.Contains(path, "layout/") {
+			pageFiles = append(pageFiles, path)
+		}
+		return nil
+	})
+
+	for _, pageFile := range pageFiles {
+		name := filepath.Base(pageFile)
+		name = strings.TrimSuffix(name, ".html")
+
+		t := template.New("").Funcs(funcMap)
+		t, err := t.ParseFiles(append(layoutFiles, pageFile)...)
+		if err != nil {
+			log.Fatalf("Failed to parse template %s: %v", pageFile, err)
+		}
+		r.templates[name] = t
+	}
+
+	log.Printf("Loaded %d templates", len(r.templates))
+	return r
+}
+
+func (r *Renderer) Render(w http.ResponseWriter, name string, data interface{}) {
+	t, ok := r.templates[name]
+	if !ok {
+		log.Printf("Template not found: %s", name)
+		http.Error(w, "Template not found", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// Execute the page file's base template name (the filename itself)
+	err := t.ExecuteTemplate(w, name+".html", data)
+	if err != nil {
+		log.Printf("Template render error (%s): %v", name, err)
+		http.Error(w, "Render error", http.StatusInternalServerError)
+	}
 }

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,16 +17,16 @@ type UserHandler struct {
 	userStore  *store.UserStore
 	tokenStore *store.TokenStore
 	cfg        *config.Config
-	templates  *template.Template
+	renderer   Renderer
 }
 
-func NewUserHandler(us *store.UserStore, ts *store.TokenStore, cfg *config.Config, tmpl *template.Template) *UserHandler {
-	return &UserHandler{userStore: us, tokenStore: ts, cfg: cfg, templates: tmpl}
+func NewUserHandler(us *store.UserStore, ts *store.TokenStore, cfg *config.Config, r Renderer) *UserHandler {
+	return &UserHandler{userStore: us, tokenStore: ts, cfg: cfg, renderer: r}
 }
 
 func (h *UserHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
-	h.templates.ExecuteTemplate(w, "user_settings.html", map[string]interface{}{
+	h.renderer.Render(w, "user_settings", map[string]interface{}{
 		"User":    user,
 		"Success": r.URL.Query().Get("success"),
 		"Error":   r.URL.Query().Get("error"),
@@ -50,7 +49,7 @@ func (h *UserHandler) KeysPage(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	keys, _ := h.userStore.ListSSHKeys(r.Context(), user.ID)
 
-	h.templates.ExecuteTemplate(w, "user_keys.html", map[string]interface{}{
+	h.renderer.Render(w, "user_keys", map[string]interface{}{
 		"User":    user,
 		"Keys":    keys,
 		"Error":   r.URL.Query().Get("error"),
@@ -106,7 +105,7 @@ func (h *UserHandler) TokensPage(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	tokens, _ := h.tokenStore.List(r.Context(), user.ID)
 
-	h.templates.ExecuteTemplate(w, "user_tokens.html", map[string]interface{}{
+	h.renderer.Render(w, "user_tokens", map[string]interface{}{
 		"User":     user,
 		"Tokens":   tokens,
 		"NewToken": r.URL.Query().Get("new_token"),

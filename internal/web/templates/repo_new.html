@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}New Repository - CodeHive{{end}}
-{{define "content"}}
+{{define "repo_new.html"}}{{template "header" .}}
 <div class="page-header">
     <h2>Create a new repository</h2>
 </div>
@@ -28,4 +26,4 @@
     </div>
     <button type="submit" class="btn btn-primary">Create Repository</button>
 </form>
-{{end}}
+{{template "footer" .}}{{end}}

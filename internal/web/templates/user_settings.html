@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}Settings - CodeHive{{end}}
-{{define "content"}}
+{{define "user_settings.html"}}{{template "header" .}}
 <h2>Profile Settings</h2>
 <div class="settings-nav">
     <a href="/settings" class="active">Profile</a>
@@ -27,4 +25,4 @@
     </div>
     <button type="submit" class="btn btn-primary">Update profile</button>
 </form>
-{{end}}
+{{template "footer" .}}{{end}}

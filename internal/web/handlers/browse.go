@@ -17,11 +17,11 @@ import (
 type BrowseHandler struct {
 	repoStore *store.RepoStore
 	gitSvc    *gitbackend.Service
-	templates *template.Template
+	renderer  Renderer
 }
 
-func NewBrowseHandler(rs *store.RepoStore, gs *gitbackend.Service, tmpl *template.Template) *BrowseHandler {
-	return &BrowseHandler{repoStore: rs, gitSvc: gs, templates: tmpl}
+func NewBrowseHandler(rs *store.RepoStore, gs *gitbackend.Service, r Renderer) *BrowseHandler {
+	return &BrowseHandler{repoStore: rs, gitSvc: gs, renderer: r}
 }
 
 func (h *BrowseHandler) RepoRoot(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +41,7 @@ func (h *BrowseHandler) RepoRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.gitSvc.IsEmpty(repo.DiskPath) {
-		h.templates.ExecuteTemplate(w, "repo_empty.html", map[string]interface{}{
+		h.renderer.Render(w, "repo_empty", map[string]interface{}{
 			"User":  user,
 			"Repo":  repo,
 			"Owner": repo.Owner,
@@ -96,7 +96,7 @@ func (h *BrowseHandler) renderTree(w http.ResponseWriter, r *http.Request, repo 
 
 	breadcrumb := buildBreadcrumb(path)
 
-	h.templates.ExecuteTemplate(w, "repo_tree.html", map[string]interface{}{
+	h.renderer.Render(w, "repo_tree", map[string]interface{}{
 		"User":       user,
 		"Repo":       repo,
 		"Owner":      repo.Owner,
@@ -143,7 +143,7 @@ func (h *BrowseHandler) Blob(w http.ResponseWriter, r *http.Request) {
 		lines = strings.Split(string(content), "\n")
 	}
 
-	h.templates.ExecuteTemplate(w, "repo_blob.html", map[string]interface{}{
+	h.renderer.Render(w, "repo_blob", map[string]interface{}{
 		"User":     user,
 		"Repo":     repo,
 		"Owner":    repo.Owner,
@@ -209,7 +209,7 @@ func (h *BrowseHandler) Commits(w http.ResponseWriter, r *http.Request) {
 	commits, _ := h.gitSvc.ListCommits(repo.DiskPath, ref, page, 30)
 	branches, _ := h.gitSvc.ListBranches(repo.DiskPath)
 
-	h.templates.ExecuteTemplate(w, "repo_commits.html", map[string]interface{}{
+	h.renderer.Render(w, "repo_commits", map[string]interface{}{
 		"User":     user,
 		"Repo":     repo,
 		"Owner":    repo.Owner,
@@ -246,7 +246,7 @@ func (h *BrowseHandler) Commit(w http.ResponseWriter, r *http.Request) {
 
 	diff, _ := h.gitSvc.GetDiff(repo.DiskPath, sha)
 
-	h.templates.ExecuteTemplate(w, "repo_commit.html", map[string]interface{}{
+	h.renderer.Render(w, "repo_commit", map[string]interface{}{
 		"User":   user,
 		"Repo":   repo,
 		"Owner":  repo.Owner,

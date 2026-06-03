@@ -1,6 +1,4 @@
-{{template "base" .}}
-{{define "title"}}Dashboard - CodeHive{{end}}
-{{define "content"}}
+{{define "dashboard.html"}}{{template "header" .}}
 <div class="page-header">
     <h2>Your Repositories</h2>
     <a href="/new" class="btn btn-primary">+ New Repository</a>
@@ -26,4 +24,4 @@
     <a href="/new" class="btn btn-primary">Create your first repository</a>
 </div>
 {{end}}
-{{end}}
+{{template "footer" .}}{{end}}

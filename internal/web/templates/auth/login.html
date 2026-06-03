@@ -1,20 +1,29 @@
-{{template "bare" .}}
-{{define "title"}}Login - CodeHive{{end}}
-{{define "content"}}
-<div class="auth-box">
-    <h1>Sign in to CodeHive</h1>
-    {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
-    <form method="POST" action="/login">
-        <div class="form-group">
-            <label for="username">Username or Email</label>
-            <input type="text" id="username" name="username" required autofocus>
+{{define "login.html"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - CodeHive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-box">
+            <h1>Sign in to CodeHive</h1>
+            {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+            <form method="POST" action="/login">
+                <div class="form-group">
+                    <label for="username">Username or Email</label>
+                    <input type="text" id="username" name="username" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+            </form>
+            <p class="auth-footer">New to CodeHive? <a href="/register">Create an account</a></p>
         </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-    </form>
-    <p class="auth-footer">New to CodeHive? <a href="/register">Create an account</a></p>
-</div>
-{{end}}
+    </div>
+</body>
+</html>{{end}}
