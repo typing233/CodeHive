@@ -80,6 +80,30 @@ func (s *WebhookStore) ListByRepoAndEvent(ctx context.Context, repoID int64, eve
 	return hooks, rows.Err()
 }
 
+func (s *WebhookStore) ListByOwnerAndEvent(ctx context.Context, ownerID int64, event string) ([]*models.Webhook, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT w.id, w.repo_id, w.url, w.secret, w.events, w.is_active, w.created_at, w.updated_at
+		 FROM webhooks w
+		 JOIN repositories r ON w.repo_id = r.id
+		 WHERE r.owner_id = $1 AND w.is_active = TRUE AND $2 = ANY(w.events)`, ownerID, event,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var hooks []*models.Webhook
+	for rows.Next() {
+		wh := &models.Webhook{}
+		if err := rows.Scan(&wh.ID, &wh.RepoID, &wh.URL, &wh.Secret, pq.Array(&wh.Events),
+			&wh.IsActive, &wh.CreatedAt, &wh.UpdatedAt); err != nil {
+			return nil, err
+		}
+		hooks = append(hooks, wh)
+	}
+	return hooks, rows.Err()
+}
+
 func (s *WebhookStore) Update(ctx context.Context, wh *models.Webhook) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE webhooks SET url=$1, secret=$2, events=$3, is_active=$4, updated_at=NOW()

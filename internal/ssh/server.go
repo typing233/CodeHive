@@ -15,24 +15,27 @@ import (
 	"github.com/codehive/codehive/internal/config"
 	"github.com/codehive/codehive/internal/gitbackend"
 	"github.com/codehive/codehive/internal/store"
+	"github.com/codehive/codehive/internal/webhook"
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
 )
 
 type Server struct {
-	cfg       *config.Config
-	userStore *store.UserStore
-	repoStore *store.RepoStore
-	gitSvc    *gitbackend.Service
-	sshServer *ssh.Server
+	cfg        *config.Config
+	userStore  *store.UserStore
+	repoStore  *store.RepoStore
+	gitSvc     *gitbackend.Service
+	webhookSvc *webhook.Dispatcher
+	sshServer  *ssh.Server
 }
 
-func NewServer(cfg *config.Config, us *store.UserStore, rs *store.RepoStore, gs *gitbackend.Service) *Server {
+func NewServer(cfg *config.Config, us *store.UserStore, rs *store.RepoStore, gs *gitbackend.Service, wd *webhook.Dispatcher) *Server {
 	s := &Server{
-		cfg:       cfg,
-		userStore: us,
-		repoStore: rs,
-		gitSvc:    gs,
+		cfg:        cfg,
+		userStore:  us,
+		repoStore:  rs,
+		gitSvc:     gs,
+		webhookSvc: wd,
 	}
 
 	s.sshServer = &ssh.Server{
@@ -141,6 +144,16 @@ func (s *Server) sessionHandler(sess ssh.Session) {
 		sess.Exit(1)
 		return
 	}
+
+	if gitCmd == "git-receive-pack" {
+		username := sess.Context().Value("username").(string)
+		s.webhookSvc.Dispatch(context.Background(), repo.ID, "push", map[string]interface{}{
+			"repository": repoName,
+			"owner":      owner,
+			"pusher":     username,
+		})
+	}
+
 	sess.Exit(0)
 }
 

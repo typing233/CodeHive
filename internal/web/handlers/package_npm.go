@@ -257,7 +257,7 @@ func (h *NPMHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 
-	h.webhookSvc.Dispatch(r.Context(), 0, "package.published", map[string]interface{}{
+	h.webhookSvc.DispatchByOwner(r.Context(), user.ID, "package.published", map[string]interface{}{
 		"type":    "npm",
 		"name":    pkgName,
 		"owner":   user.Username,
@@ -309,7 +309,7 @@ func (h *NPMHandler) Unpublish(w http.ResponseWriter, r *http.Request) {
 	h.auditStore.Log(r.Context(), &user.ID, "package.version.delete", "package", &pkg.ID,
 		map[string]interface{}{"name": pkg.Name, "version": version}, r.RemoteAddr)
 
-	h.webhookSvc.Dispatch(r.Context(), 0, "package.deleted", map[string]interface{}{
+	h.webhookSvc.DispatchByOwner(r.Context(), user.ID, "package.deleted", map[string]interface{}{
 		"type":    "npm",
 		"name":    pkg.Name,
 		"version": version,

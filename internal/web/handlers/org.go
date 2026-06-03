@@ -242,6 +242,9 @@ func (h *OrgHandler) UpdateTeam(w http.ResponseWriter, r *http.Request) {
 	team.Permission = r.FormValue("permission")
 	h.orgStore.UpdateTeam(r.Context(), team)
 
+	h.auditStore.Log(r.Context(), &user.ID, "permission.change", "team", &teamID,
+		map[string]interface{}{"org": orgName, "team": team.Name, "permission": team.Permission}, r.RemoteAddr)
+
 	http.Redirect(w, r, fmt.Sprintf("/orgs/%s/teams", orgName), http.StatusFound)
 }
 
@@ -293,8 +296,12 @@ func (h *OrgHandler) UpdateTeamMembers(w http.ResponseWriter, r *http.Request) {
 
 	if action == "remove" {
 		h.orgStore.RemoveTeamMember(r.Context(), teamID, target.ID)
+		h.auditStore.Log(r.Context(), &user.ID, "permission.change", "team", &teamID,
+			map[string]interface{}{"org": orgName, "action": "remove_member", "username": username}, r.RemoteAddr)
 	} else {
 		h.orgStore.AddTeamMember(r.Context(), teamID, target.ID)
+		h.auditStore.Log(r.Context(), &user.ID, "permission.change", "team", &teamID,
+			map[string]interface{}{"org": orgName, "action": "add_member", "username": username}, r.RemoteAddr)
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/orgs/%s/teams", orgName), http.StatusFound)
@@ -322,11 +329,15 @@ func (h *OrgHandler) UpdateTeamRepos(w http.ResponseWriter, r *http.Request) {
 
 	if action == "remove" {
 		h.orgStore.RemoveTeamRepo(r.Context(), teamID, repoID)
+		h.auditStore.Log(r.Context(), &user.ID, "permission.change", "team", &teamID,
+			map[string]interface{}{"org": orgName, "action": "remove_repo", "repo_id": repoID}, r.RemoteAddr)
 	} else {
 		if permission == "" {
 			permission = "read"
 		}
 		h.orgStore.AddTeamRepo(r.Context(), teamID, repoID, permission)
+		h.auditStore.Log(r.Context(), &user.ID, "permission.change", "team", &teamID,
+			map[string]interface{}{"org": orgName, "action": "add_repo", "repo_id": repoID, "permission": permission}, r.RemoteAddr)
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/orgs/%s/teams", orgName), http.StatusFound)

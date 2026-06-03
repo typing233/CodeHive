@@ -65,6 +65,28 @@ func (d *Dispatcher) Dispatch(ctx context.Context, repoID int64, event string, p
 	}
 }
 
+func (d *Dispatcher) DispatchByOwner(ctx context.Context, ownerID int64, event string, payload interface{}) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("webhook: failed to marshal payload: %v", err)
+		return
+	}
+
+	hooks, err := d.store.ListByOwnerAndEvent(ctx, ownerID, event)
+	if err != nil {
+		log.Printf("webhook: failed to list hooks by owner: %v", err)
+		return
+	}
+
+	for _, hook := range hooks {
+		select {
+		case d.queue <- deliveryJob{Webhook: hook, Event: event, Payload: data}:
+		default:
+			log.Printf("webhook: queue full, dropping delivery for hook %d", hook.ID)
+		}
+	}
+}
+
 func (d *Dispatcher) worker() {
 	for job := range d.queue {
 		d.deliver(job, 0)

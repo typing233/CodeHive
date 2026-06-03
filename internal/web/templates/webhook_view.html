@@ -13,6 +13,20 @@
         <input type="text" name="secret" placeholder="Leave blank to keep current" class="form-control">
     </div>
     <div class="form-group">
+        <label>Events</label>
+        {{$events := .Webhook.Events}}
+        <label><input type="checkbox" name="events" value="push" {{range $events}}{{if eq . "push"}}checked{{end}}{{end}}> Push</label>
+        <label><input type="checkbox" name="events" value="pr.opened" {{range $events}}{{if eq . "pr.opened"}}checked{{end}}{{end}}> PR Opened</label>
+        <label><input type="checkbox" name="events" value="pr.merged" {{range $events}}{{if eq . "pr.merged"}}checked{{end}}{{end}}> PR Merged</label>
+        <label><input type="checkbox" name="events" value="pr.closed" {{range $events}}{{if eq . "pr.closed"}}checked{{end}}{{end}}> PR Closed</label>
+        <label><input type="checkbox" name="events" value="pr.commented" {{range $events}}{{if eq . "pr.commented"}}checked{{end}}{{end}}> PR Commented</label>
+        <label><input type="checkbox" name="events" value="pr.reviewed" {{range $events}}{{if eq . "pr.reviewed"}}checked{{end}}{{end}}> PR Reviewed</label>
+        <label><input type="checkbox" name="events" value="issue.opened" {{range $events}}{{if eq . "issue.opened"}}checked{{end}}{{end}}> Issue Opened</label>
+        <label><input type="checkbox" name="events" value="issue.closed" {{range $events}}{{if eq . "issue.closed"}}checked{{end}}{{end}}> Issue Closed</label>
+        <label><input type="checkbox" name="events" value="package.published" {{range $events}}{{if eq . "package.published"}}checked{{end}}{{end}}> Package Published</label>
+        <label><input type="checkbox" name="events" value="package.deleted" {{range $events}}{{if eq . "package.deleted"}}checked{{end}}{{end}}> Package Deleted</label>
+    </div>
+    <div class="form-group">
         <label><input type="checkbox" name="is_active" {{if .Webhook.IsActive}}checked{{end}}> Active</label>
     </div>
     <button type="submit" class="btn btn-primary">Update</button>

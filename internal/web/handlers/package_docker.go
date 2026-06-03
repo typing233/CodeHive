@@ -174,7 +174,7 @@ func (h *DockerHandler) PutManifest(w http.ResponseWriter, r *http.Request) {
 	}
 	h.packageStore.CreateVersion(r.Context(), ver)
 
-	h.webhookSvc.Dispatch(r.Context(), 0, "package.published", map[string]interface{}{
+	h.webhookSvc.DispatchByOwner(r.Context(), user.ID, "package.published", map[string]interface{}{
 		"type":      "docker",
 		"name":      name,
 		"reference": reference,
@@ -215,7 +215,7 @@ func (h *DockerHandler) DeleteManifest(w http.ResponseWriter, r *http.Request) {
 	h.auditStore.Log(r.Context(), &user.ID, "package.manifest.delete", "package", &pkg.ID,
 		map[string]interface{}{"name": name, "reference": reference}, r.RemoteAddr)
 
-	h.webhookSvc.Dispatch(r.Context(), 0, "package.deleted", map[string]interface{}{
+	h.webhookSvc.DispatchByOwner(r.Context(), user.ID, "package.deleted", map[string]interface{}{
 		"type":      "docker",
 		"name":      name,
 		"reference": reference,

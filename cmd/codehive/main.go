@@ -73,7 +73,7 @@ func main() {
 	gitSvc := gitbackend.NewService(cfg.Git.DataDir)
 	webhookDispatcher := webhook.NewDispatcher(webhookStore)
 
-	sshServer := ssh.NewServer(cfg, userStore, repoStore, gitSvc)
+	sshServer := ssh.NewServer(cfg, userStore, repoStore, gitSvc, webhookDispatcher)
 	go func() {
 		log.Printf("SSH server listening on :%d", cfg.SSH.Port)
 		if err := sshServer.ListenAndServe(); err != nil {

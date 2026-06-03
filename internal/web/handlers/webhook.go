@@ -152,6 +152,7 @@ func (h *WebhookHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if secret := r.FormValue("secret"); secret != "" {
 		hook.Secret = secret
 	}
+	r.ParseForm()
 	hook.Events = r.Form["events"]
 	hook.IsActive = r.FormValue("is_active") == "on"
 
